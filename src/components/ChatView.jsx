@@ -39,16 +39,17 @@ function groupMessagesByDate(messages) {
 }
 
 export default function ChatView({ conversation, onBack, onDeleteChat }) {
-  const { user } = useAuth()
+  const { user, isUserOnline } = useAuth()
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
   const [isOtherTyping, setIsOtherTyping] = useState(false)
-  const [isOtherOnline, setIsOtherOnline] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const messagesEndRef = useRef(null)
   const scrollRef = useRef(null)
   const typingTimer = useRef(null)
   const channelRef = useRef(null)
+
+  const isOtherOnline = isUserOnline(conversation?.other_user_id)
 
   // Block user state stored in localStorage
   const [isBlocked, setIsBlocked] = useState(() => {
@@ -84,34 +85,10 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
     setShowOptions(false)
   }
 
-  // Supabase Realtime Presence & Typing Channel
+  // Supabase Realtime Typing Broadcast Channel
   useEffect(() => {
     if (!conversation?.conversation_id || !user) return
 
-    const presenceChannel = supabase.channel('online-presence', {
-      config: { presence: { key: user.id } },
-    })
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState()
-        const otherId = conversation.other_user_id
-        const online = !!state[otherId]
-        setIsOtherOnline(online)
-      })
-      .on('presence', { event: 'join' }, ({ key }) => {
-        if (key === conversation.other_user_id) setIsOtherOnline(true)
-      })
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        if (key === conversation.other_user_id) setIsOtherOnline(false)
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ online_at: new Date().toISOString() })
-        }
-      })
-
-    // Separate typing broadcast channel
     const typingChannel = supabase.channel(`typing-${conversation.conversation_id}`)
     channelRef.current = typingChannel
 
@@ -127,10 +104,9 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
 
     return () => {
       clearTimeout(typingTimer.current)
-      supabase.removeChannel(presenceChannel)
       supabase.removeChannel(typingChannel)
     }
-  }, [conversation?.conversation_id, conversation?.other_user_id, user])
+  }, [conversation?.conversation_id, user])
 
   const handleSendTyping = useCallback(() => {
     if (channelRef.current && user) {

@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import SearchBar from './SearchBar'
 import SearchResult from './SearchResult'
@@ -118,9 +117,8 @@ export default function ConversationList({
   searchQuery, onSearch, onClearSearch,
   searchResults, searching, onSearchResultClick, loading,
 }) {
-  const { user } = useAuth()
+  const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
-  const [onlineUserIds, setOnlineUserIds] = useState(new Set())
 
   // Pinned chats stored in localStorage
   const [pinnedIds, setPinnedIds] = useState(() => {
@@ -131,40 +129,6 @@ export default function ConversationList({
       return []
     }
   })
-
-  // Supabase Realtime Presence tracking for list sidebar
-  useEffect(() => {
-    if (!user) return
-
-    const presenceChannel = supabase.channel('online-presence', {
-      config: { presence: { key: user.id } },
-    })
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState()
-        setOnlineUserIds(new Set(Object.keys(state)))
-      })
-      .on('presence', { event: 'join' }, ({ key }) => {
-        setOnlineUserIds((prev) => new Set([...prev, key]))
-      })
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        setOnlineUserIds((prev) => {
-          const next = new Set(prev)
-          next.delete(key)
-          return next
-        })
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ online_at: new Date().toISOString() })
-        }
-      })
-
-    return () => {
-      supabase.removeChannel(presenceChannel)
-    }
-  }, [user])
 
   const togglePin = (convId) => {
     setPinnedIds((prev) => {
@@ -203,7 +167,7 @@ export default function ConversationList({
       paddingLeft: 'var(--safe-left)',
       position: 'relative',
     }}>
-      {/* Header — with position relative & high zIndex so ProfileMenu dropdown renders on top */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -301,7 +265,7 @@ export default function ConversationList({
                     conversation={conv}
                     isActive={activeId === conv.conversation_id}
                     isPinned={pinnedIds.includes(conv.conversation_id)}
-                    isOnline={onlineUserIds.has(conv.other_user_id)}
+                    isOnline={isUserOnline(conv.other_user_id)}
                     onPinToggle={togglePin}
                     onClick={onSelect}
                   />
@@ -316,7 +280,7 @@ export default function ConversationList({
               conversation={conv}
               isActive={activeId === conv.conversation_id}
               isPinned={pinnedIds.includes(conv.conversation_id)}
-              isOnline={onlineUserIds.has(conv.other_user_id)}
+              isOnline={isUserOnline(conv.other_user_id)}
               onPinToggle={togglePin}
               onClick={onSelect}
             />

@@ -6,6 +6,7 @@ import VerifyOtp from './pages/VerifyOtp'
 import Setup from './pages/Setup'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 import Logo from './components/Logo'
 
 function LoadingScreen() {
@@ -61,24 +62,21 @@ export default function App() {
     }
   }, [])
 
-  // Smart Auto-redirect based on auth state (NEVER flash /setup for existing users!)
+  // Smart Auto-redirect based on auth state
   useEffect(() => {
     if (loading) return
 
     const path = location.pathname
 
     if (user && profile) {
-      // User is authenticated AND profile is loaded -> go straight to dashboard
       if (path === '/login' || path === '/verify-otp' || path === '/setup' || path === '/') {
         navigate('/dashboard', { replace: true })
       }
     } else if (user && !profile && profileFetched) {
-      // ONLY redirect to /setup if profile has been checked against DB and confirmed null
       if (path !== '/setup') {
         navigate('/setup', { replace: true })
       }
     } else if (!user) {
-      // Not logged in -> go to login
       if (path !== '/login' && path !== '/verify-otp') {
         navigate('/login', { replace: true })
       }
@@ -88,22 +86,24 @@ export default function App() {
   if (loading || (user && !profile && !profileFetched)) return <LoadingScreen />
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/verify-otp" element={<VerifyOtp />} />
-      <Route
-        path="/setup"
-        element={user ? <Setup /> : <Navigate to="/login" replace />}
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/verify-otp" element={<VerifyOtp />} />
+        <Route
+          path="/setup"
+          element={user ? <Setup /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </ErrorBoundary>
   )
 }

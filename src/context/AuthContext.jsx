@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext({
@@ -8,6 +8,8 @@ const AuthContext = createContext({
   loading: true,
   profileFetched: false,
   authError: null,
+  onlineUserIds: new Set(),
+  isUserOnline: () => false,
   signOut: async () => {},
   refreshProfile: async () => {},
 })
@@ -15,7 +17,9 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
-  // Try loading profile instantly from localStorage cache for 0ms startup!
+  const [onlineUserIds, setOnlineUserIds] = useState(new Set())
+
+  // Load profile instantly from localStorage cache
   const [profile, setProfile] = useState(() => {
     try {
       const cached = localStorage.getItem('chupa-profile-cache')
@@ -35,6 +39,51 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null)
   const isInitialCheckDone = useRef(false)
 
+  // Single Global Presence Channel
+  useEffect(() => {
+    if (!user) {
+      setOnlineUserIds(new Set())
+      return
+    }
+
+    const presenceChannel = supabase.channel('online-presence-global', {
+      config: { presence: { key: user.id } },
+    })
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState()
+        setOnlineUserIds(new Set(Object.keys(state)))
+      })
+      .on('presence', { event: 'join' }, ({ key }) => {
+        setOnlineUserIds((prev) => new Set([...prev, key]))
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ online_at: new Date().toISOString() })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(presenceChannel)
+    }
+  }, [user])
+
+  const isUserOnline = useCallback(
+    (userId) => {
+      if (!userId) return false
+      return onlineUserIds.has(userId)
+    },
+    [onlineUserIds]
+  )
+
   const fetchProfile = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -50,7 +99,6 @@ export function AuthProvider({ children }) {
         } catch { /* ignore storage quota */ }
       } else {
         if (error && error.code === 'PGRST116') {
-          // Profile genuinely does not exist in DB
           setProfile(null)
           localStorage.removeItem('chupa-profile-cache')
         }
@@ -69,7 +117,6 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Safety Fallback: Guarantee loading is NEVER stuck longer than 3 seconds
     const safetyTimer = setTimeout(() => {
       if (!isInitialCheckDone.current) {
         isInitialCheckDone.current = true
@@ -77,7 +124,6 @@ export function AuthProvider({ children }) {
       }
     }, 3000)
 
-    // Check for error in magic link callback URL
     const hash = window.location.hash
     const search = window.location.search
 
@@ -93,7 +139,6 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Initial session check — await fetchProfile BEFORE setting loading=false!
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -110,7 +155,6 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    // Realtime auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session)
@@ -159,6 +203,8 @@ export function AuthProvider({ children }) {
         loading,
         profileFetched,
         authError,
+        onlineUserIds,
+        isUserOnline,
         signOut,
         refreshProfile,
       }}
