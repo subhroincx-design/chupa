@@ -64,6 +64,7 @@ export default function MessageInput({ onSend, disabled }) {
             border: '1.5px solid var(--c-border)',
             borderRadius: 24,
             color: 'var(--c-text)',
+            caretColor: 'var(--c-accent)',
             transition: 'border-color 150ms, box-shadow 150ms',
           }}
           onFocus={(e) => {

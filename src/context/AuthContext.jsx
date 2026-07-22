@@ -7,6 +7,7 @@ const AuthContext = createContext({
   profile: null,
   loading: true,
   profileLoading: true,
+  authError: null,
   signOut: async () => {},
   refreshProfile: async () => {},
 })
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
 
   const fetchProfile = async (userId) => {
     try {
@@ -46,10 +48,28 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    // Check for error in magic link callback URL
+    const hash = window.location.hash
+    const search = window.location.search
+
+    if (hash.includes('error_description=') || search.includes('error_description=')) {
+      const params = new URLSearchParams(hash.replace('#', '?') || search)
+      const errorMsg = params.get('error_description')?.replace(/\+/g, ' ') || 'Authentication error'
+      setAuthError(errorMsg)
+    }
+
+    // Clean up hash/code parameters from URL after processing so URL is pristine
+    const cleanUrlHash = () => {
+      if (window.location.hash || window.location.search.includes('code=')) {
+        window.history.replaceState(null, document.title, window.location.pathname)
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
+        cleanUrlHash()
         fetchProfile(session.user.id)
       } else {
         setProfileLoading(false)
@@ -62,6 +82,8 @@ export function AuthProvider({ children }) {
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
+          cleanUrlHash()
+          setAuthError(null)
           await fetchProfile(session.user.id)
         } else {
           setProfile(null)
@@ -79,6 +101,7 @@ export function AuthProvider({ children }) {
     setProfile(null)
     setUser(null)
     setSession(null)
+    setAuthError(null)
   }
 
   return (
@@ -89,6 +112,7 @@ export function AuthProvider({ children }) {
         profile,
         loading,
         profileLoading,
+        authError,
         signOut,
         refreshProfile,
       }}

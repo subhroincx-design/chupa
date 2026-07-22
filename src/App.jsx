@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
@@ -17,7 +17,7 @@ function LoadingScreen() {
       justifyContent: 'center',
       backgroundColor: 'var(--c-bg)',
     }}>
-      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
         <div style={{
           width: 60, height: 60, borderRadius: 16,
           background: 'linear-gradient(135deg, #059669, #10b981)',
@@ -50,9 +50,6 @@ export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Detect if user landed from an Auth Redirect Link (magic link token in URL hash or search params)
-  const isAuthCallback = location.hash.includes('access_token=') || location.search.includes('code=') || location.hash.includes('error=')
-
   // Initialize theme from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('chupa-theme')
@@ -79,15 +76,13 @@ export default function App() {
         navigate('/setup', { replace: true })
       }
     } else {
-      // Don't bounce to /login if we are currently handling magic link callback token
-      if (path !== '/login' && path !== '/verify-otp' && !isAuthCallback) {
+      if (path !== '/login' && path !== '/verify-otp') {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, profileLoading, navigate, location.pathname, isAuthCallback])
+  }, [user, profile, loading, profileLoading, navigate, location.pathname])
 
-  // Show loading screen while session is being fetched OR while magic link token is processing
-  if (loading || (isAuthCallback && !user)) return <LoadingScreen />
+  if (loading || profileLoading) return <LoadingScreen />
 
   return (
     <Routes>

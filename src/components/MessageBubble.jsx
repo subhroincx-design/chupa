@@ -29,7 +29,6 @@ function DateSeparator({ label }) {
 }
 
 const MessageBubble = memo(function MessageBubble({ message, isSender, showDate, dateLabel, isConsecutive }) {
-  // Border radius rules for grouped messages (iMessage / WhatsApp style)
   let borderRadius = isSender ? '18px 18px 4px 18px' : '18px 18px 18px 4px'
   if (isConsecutive && !showDate) {
     borderRadius = isSender ? '18px 4px 4px 18px' : '4px 18px 18px 4px'
@@ -41,7 +40,6 @@ const MessageBubble = memo(function MessageBubble({ message, isSender, showDate,
     <>
       {showDate && <DateSeparator label={dateLabel} />}
       <div
-        className={isSender ? 'bubble-in-right' : 'bubble-in-left'}
         style={{ display: 'flex', justifyContent: isSender ? 'flex-end' : 'flex-start', marginTop }}
       >
         <div style={{
