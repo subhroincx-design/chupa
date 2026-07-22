@@ -382,6 +382,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
               dateLabel={dateLabel}
               isConsecutive={isConsecutive}
               senderName={msg.sender_id === user?.id ? 'You' : conversation.other_user_name}
+              isOtherOnline={isOtherOnline}
               onReply={(m) => setReplyingTo(m)}
               onDelete={deleteMessage}
             />

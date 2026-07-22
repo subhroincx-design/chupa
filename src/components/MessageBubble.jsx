@@ -29,11 +29,10 @@ function DateSeparator({ label }) {
 }
 
 const MessageBubble = memo(function MessageBubble({
-  message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName,
+  message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isOtherOnline,
 }) {
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [reaction, setReaction] = useState(null)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -53,11 +52,6 @@ const MessageBubble = memo(function MessageBubble({
     navigator.clipboard.writeText(message.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 1200)
-    setShowMenu(false)
-  }
-
-  const handleReact = (emoji) => {
-    setReaction((prev) => (prev === emoji ? null : emoji))
     setShowMenu(false)
   }
 
@@ -129,38 +123,19 @@ const MessageBubble = memo(function MessageBubble({
                 marginTop: 4,
                 background: 'var(--c-surface)',
                 border: '1px solid var(--c-border)',
-                borderRadius: 12,
+                borderRadius: 10,
                 boxShadow: 'var(--shadow-md)',
                 zIndex: 50,
-                padding: '6px',
-                minWidth: 160,
+                padding: '4px 0',
+                minWidth: 150,
               }}
             >
-              {/* Quick emoji reactions */}
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between', padding: '4px 6px 8px', borderBottom: '1px solid var(--c-border)' }}>
-                {['👍', '❤️', '😂', '🔥', '😮'].map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReact(emoji)}
-                    style={{
-                      fontSize: 16, padding: '2px 4px', borderRadius: 6,
-                      background: reaction === emoji ? 'var(--c-accent-light)' : 'none',
-                      cursor: 'pointer', transition: 'transform 80ms',
-                    }}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-
               <button
                 onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
                 style={{
-                  width: '100%', padding: '8px 10px', fontSize: 12.5, textAlign: 'left',
+                  width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
                   color: 'var(--c-text)', background: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
+                  display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
                 ↩ Reply
@@ -168,7 +143,7 @@ const MessageBubble = memo(function MessageBubble({
               <button
                 onClick={handleCopy}
                 style={{
-                  width: '100%', padding: '8px 10px', fontSize: 12.5, textAlign: 'left',
+                  width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
                   color: 'var(--c-text)', background: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}
@@ -179,7 +154,7 @@ const MessageBubble = memo(function MessageBubble({
                 <button
                   onClick={() => { onDelete(message.id); setShowMenu(false) }}
                   style={{
-                    width: '100%', padding: '8px 10px', fontSize: 12.5, textAlign: 'left',
+                    width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
                     color: 'var(--c-danger)', background: 'none', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: 8,
                     borderTop: '1px solid var(--c-border)', marginTop: 2, paddingTop: 6,
@@ -203,29 +178,11 @@ const MessageBubble = memo(function MessageBubble({
             ref={(el) => { if (el) el.textContent = message.content }}
           />
 
-          {/* Reaction badge */}
-          {reaction && (
-            <span style={{
-              position: 'absolute',
-              bottom: -8,
-              right: isSender ? 'auto' : 8,
-              left: isSender ? 8 : 'auto',
-              background: 'var(--c-surface)',
-              border: '1px solid var(--c-border)',
-              borderRadius: 99,
-              padding: '1px 5px',
-              fontSize: 11,
-              boxShadow: 'var(--shadow-sm)',
-            }}>
-              {reaction}
-            </span>
-          )}
-
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            gap: 4,
+            gap: 3,
             marginTop: 3,
           }}>
             <span style={{
@@ -237,8 +194,14 @@ const MessageBubble = memo(function MessageBubble({
               {formatTime(message.created_at)}
             </span>
             {isSender && (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', letterSpacing: -1, fontWeight: 700 }}>
-                ✓✓
+              <span style={{
+                fontSize: 10,
+                color: isOtherOnline ? '#ffffff' : 'rgba(255,255,255,0.65)',
+                letterSpacing: -1.5,
+                fontWeight: 700,
+                userSelect: 'none',
+              }}>
+                {isOtherOnline ? '✓✓' : '✓'}
               </span>
             )}
           </div>
