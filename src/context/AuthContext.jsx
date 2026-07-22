@@ -6,7 +6,7 @@ const AuthContext = createContext({
   session: null,
   profile: null,
   loading: true,
-  profileLoading: false,
+  profileFetched: false,
   authError: null,
   signOut: async () => {},
   refreshProfile: async () => {},
@@ -15,31 +15,50 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  // `loading` is ONLY true during initial cold startup. Once false, stays false.
+  // Try loading profile instantly from localStorage cache for 0ms startup!
+  const [profile, setProfile] = useState(() => {
+    try {
+      const cached = localStorage.getItem('chupa-profile-cache')
+      return cached ? JSON.parse(cached) : null
+    } catch {
+      return null
+    }
+  })
   const [loading, setLoading] = useState(true)
-  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileFetched, setProfileFetched] = useState(() => {
+    try {
+      return !!localStorage.getItem('chupa-profile-cache')
+    } catch {
+      return false
+    }
+  })
   const [authError, setAuthError] = useState(null)
   const isInitialCheckDone = useRef(false)
 
   const fetchProfile = async (userId) => {
     try {
-      setProfileLoading(true)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Profile fetch error:', error)
+      if (!error && data) {
+        setProfile(data)
+        try {
+          localStorage.setItem('chupa-profile-cache', JSON.stringify(data))
+        } catch { /* ignore storage quota */ }
+      } else {
+        if (error && error.code === 'PGRST116') {
+          // Profile genuinely does not exist in DB
+          setProfile(null)
+          localStorage.removeItem('chupa-profile-cache')
+        }
       }
-      setProfile(data || null)
     } catch (err) {
       console.error('Profile fetch exception:', err)
-      setProfile(null)
     } finally {
-      setProfileLoading(false)
+      setProfileFetched(true)
     }
   }
 
@@ -50,7 +69,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Safety Fallback: Guarantee loading is NEVER stuck longer than 3 seconds under any network condition
+    // Safety Fallback: Guarantee loading is NEVER stuck longer than 3 seconds
     const safetyTimer = setTimeout(() => {
       if (!isInitialCheckDone.current) {
         isInitialCheckDone.current = true
@@ -74,13 +93,17 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Initial session check
+    // Initial session check — await fetchProfile BEFORE setting loading=false!
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
         cleanUrlHash()
         await fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setProfileFetched(true)
+        localStorage.removeItem('chupa-profile-cache')
       }
       clearTimeout(safetyTimer)
       isInitialCheckDone.current = true
@@ -96,10 +119,11 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           cleanUrlHash()
           setAuthError(null)
-          // Fetch profile in background without resetting global loading state
-          fetchProfile(session.user.id)
+          await fetchProfile(session.user.id)
         } else {
           setProfile(null)
+          setProfileFetched(true)
+          localStorage.removeItem('chupa-profile-cache')
         }
 
         if (!isInitialCheckDone.current) {
@@ -117,11 +141,13 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = async () => {
+    localStorage.removeItem('chupa-profile-cache')
     await supabase.auth.signOut()
     setProfile(null)
     setUser(null)
     setSession(null)
     setAuthError(null)
+    setProfileFetched(false)
   }
 
   return (
@@ -131,7 +157,7 @@ export function AuthProvider({ children }) {
         session,
         profile,
         loading,
-        profileLoading,
+        profileFetched,
         authError,
         signOut,
         refreshProfile,

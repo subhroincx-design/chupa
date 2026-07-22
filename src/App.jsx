@@ -46,7 +46,7 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, profileFetched } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -61,28 +61,31 @@ export default function App() {
     }
   }, [])
 
-  // Smart Auto-redirect based on auth state
+  // Smart Auto-redirect based on auth state (NEVER flash /setup for existing users!)
   useEffect(() => {
     if (loading) return
 
     const path = location.pathname
 
     if (user && profile) {
+      // User is authenticated AND profile is loaded -> go straight to dashboard
       if (path === '/login' || path === '/verify-otp' || path === '/setup' || path === '/') {
         navigate('/dashboard', { replace: true })
       }
-    } else if (user && !profile) {
+    } else if (user && !profile && profileFetched) {
+      // ONLY redirect to /setup if profile has been checked against DB and confirmed null
       if (path !== '/setup') {
         navigate('/setup', { replace: true })
       }
-    } else {
+    } else if (!user) {
+      // Not logged in -> go to login
       if (path !== '/login' && path !== '/verify-otp') {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, navigate, location.pathname])
+  }, [user, profile, loading, profileFetched, navigate, location.pathname])
 
-  if (loading) return <LoadingScreen />
+  if (loading || (user && !profile && !profileFetched)) return <LoadingScreen />
 
   return (
     <Routes>
