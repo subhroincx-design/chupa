@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { sanitizeMessage } from '../utils/sanitize'
@@ -8,6 +8,7 @@ export function useMessages(conversationId) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const sendTimestamps = useRef([])
 
   // Fetch messages
   const fetchMessages = useCallback(async () => {
@@ -53,7 +54,6 @@ export function useMessages(conversationId) {
         },
         (payload) => {
           setMessages((prev) => {
-            // Avoid duplicates
             if (prev.some((m) => m.id === payload.new.id)) return prev
             return [...prev, payload.new]
           })
@@ -66,13 +66,22 @@ export function useMessages(conversationId) {
     }
   }, [conversationId])
 
-  // Send message
+  // Send message with Anti-Spam & Anti-DDoS Rate Limiter
   const sendMessage = useCallback(
     async (content) => {
       if (!conversationId || !user || !content.trim()) return
 
       const sanitized = sanitizeMessage(content)
       if (!sanitized) return
+
+      // Anti-Spam Rate Limit: max 4 messages per 3 seconds window
+      const now = Date.now()
+      sendTimestamps.current = sendTimestamps.current.filter((t) => now - t < 3000)
+      if (sendTimestamps.current.length >= 4) {
+        setError('Sending too fast. Please wait a second.')
+        return false
+      }
+      sendTimestamps.current.push(now)
 
       const { error: sendError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
@@ -84,6 +93,7 @@ export function useMessages(conversationId) {
         setError(sendError.message)
         return false
       }
+      setError(null)
       return true
     },
     [conversationId, user]
