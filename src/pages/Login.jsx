@@ -104,28 +104,28 @@ export default function Login() {
         {isDark ? '☀️ Light' : '🌙 Dark'}
       </button>
 
-      <div className="fade-in" style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
 
         {/* Logo + Title */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 64, height: 64, borderRadius: 18,
+            width: 60, height: 60, borderRadius: 18,
             background: 'linear-gradient(135deg, #059669, #10b981)',
             boxShadow: '0 8px 24px rgba(5,150,105,0.22)',
-            marginBottom: 16,
+            marginBottom: 14,
           }}>
-            <Logo size={38} />
+            <Logo size={36} />
           </div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--c-text)', letterSpacing: '-0.035em', margin: '0 0 6px', lineHeight: 1.1 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-text)', letterSpacing: '-0.03em', margin: '0 0 4px', lineHeight: 1.1 }}>
             Chupa
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--c-text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: 13.5, color: 'var(--c-text-secondary)', margin: 0, fontWeight: 400 }}>
             Distraction-free messaging
           </p>
         </div>
 
-        {/* Card */}
+        {/* Main Card */}
         <div style={{
           background: 'var(--c-surface)',
           border: '1px solid var(--c-border)',
@@ -135,63 +135,57 @@ export default function Login() {
         }}>
           {sent ? (
             /* ── Sent state ── */
-            <div className="fade-in" style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
               <div style={{
-                width: 60, height: 60, borderRadius: '50%',
+                width: 52, height: 52, borderRadius: '50%',
                 background: 'var(--c-accent-light)',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                marginBottom: 18,
+                marginBottom: 16,
               }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2" />
-                  <path d="M22 7l-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 13V6a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2h9" />
+                  <path d="M22 7l-10 7L2 7" />
+                  <path d="M16 19l2 2 4-4" />
                 </svg>
               </div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
-                Check your inbox
+
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: 'var(--c-text)', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                Check your email
               </h2>
-              <p style={{ fontSize: 14, color: 'var(--c-text-secondary)', lineHeight: 1.6, margin: '0 0 20px' }}>
-                We sent a magic link to<br />
-                <strong style={{ color: 'var(--c-accent)' }}>{email}</strong>
+              <p style={{ fontSize: 13.5, color: 'var(--c-text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+                Sign-in link sent to<br />
+                <strong style={{ color: 'var(--c-text)', fontWeight: 600 }}>{email}</strong>
               </p>
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: 10, background: 'var(--c-bg)',
-                border: '1px solid var(--c-border)', marginBottom: 20,
-                textAlign: 'left',
-              }}>
-                <p style={{ fontSize: 13, color: 'var(--c-text-secondary)', margin: 0, lineHeight: 1.55 }}>
-                  📬 Open the email and tap <strong>"Sign In to Chupa"</strong> — you'll be logged in instantly, no password needed!
-                </p>
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', margin: '0 0 16px' }}>
-                Check Spam / Promotions if it doesn't appear.
+
+              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+                Tap the link in the email to log in instantly.
               </p>
+
               <button
                 onClick={() => { setSent(false); setEmail('') }}
                 style={{
-                  width: '100%', padding: '11px 0', fontSize: 14, fontWeight: 500,
+                  width: '100%', padding: '10px 0', fontSize: 13, fontWeight: 500,
                   background: 'var(--c-surface-hover)',
-                  color: 'var(--c-text)',
+                  color: 'var(--c-text-secondary)',
                   border: '1px solid var(--c-border)',
                   borderRadius: 10, cursor: 'pointer',
-                  transition: 'background 120ms',
+                  transition: 'background 120ms, color 120ms',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-border)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-border)'; e.currentTarget.style.color = 'var(--c-text)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--c-surface-hover)'; e.currentTarget.style.color = 'var(--c-text-secondary)' }}
               >
-                Use a different email
+                Use another email
               </button>
             </div>
           ) : (
             /* ── Email form ── */
             <form onSubmit={handleSubmit}>
               <label style={{
-                display: 'block', fontSize: 11.5, fontWeight: 600,
+                display: 'block', fontSize: 11, fontWeight: 600,
                 textTransform: 'uppercase', letterSpacing: '0.07em',
                 color: 'var(--c-text-secondary)', marginBottom: 8,
               }}>
-                Email address
+                Email Address
               </label>
               <input
                 id="email-input"
@@ -203,7 +197,7 @@ export default function Login() {
                 autoFocus
                 required
                 style={{
-                  width: '100%', padding: '13px 16px',
+                  width: '100%', padding: '12px 14px',
                   fontSize: 16,
                   background: 'var(--c-bg)',
                   border: '1.5px solid var(--c-border)',
@@ -212,14 +206,14 @@ export default function Login() {
                   transition: 'border-color 150ms, box-shadow 150ms',
                   marginBottom: 14,
                 }}
-                onFocus={(e) => { e.target.style.borderColor = 'var(--c-accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)' }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--c-accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.08)' }}
                 onBlur={(e) => { e.target.style.borderColor = 'var(--c-border)'; e.target.style.boxShadow = 'none' }}
               />
 
               {error && (
-                <div className="fade-in" style={{
+                <div style={{
                   background: 'var(--c-danger-light)', color: 'var(--c-danger)',
-                  fontSize: 13, padding: '10px 14px', borderRadius: 8, marginBottom: 14,
+                  fontSize: 12.5, padding: '10px 12px', borderRadius: 8, marginBottom: 14,
                   border: '1px solid rgba(220,38,38,0.15)', lineHeight: 1.4,
                 }}>
                   {typeof error === 'string' ? error : error.message || 'Something went wrong.'}
@@ -231,39 +225,29 @@ export default function Login() {
                 type="submit"
                 disabled={loading || !email.trim()}
                 style={{
-                  width: '100%', padding: '13px 0',
-                  fontSize: 15, fontWeight: 600,
+                  width: '100%', padding: '12px 0',
+                  fontSize: 14, fontWeight: 600,
                   background: 'var(--c-accent)', color: '#fff',
                   borderRadius: 10,
-                  boxShadow: '0 3px 10px rgba(5,150,105,0.22)',
+                  boxShadow: '0 2px 8px rgba(5,150,105,0.2)',
                   opacity: loading || !email.trim() ? 0.55 : 1,
                   transition: 'opacity 150ms, transform 80ms',
                   cursor: loading || !email.trim() ? 'not-allowed' : 'pointer',
                 }}
-                onMouseDown={(e) => { if (!loading && email.trim()) e.target.style.transform = 'scale(0.98)' }}
+                onMouseDown={(e) => { if (!loading && email.trim()) e.target.style.transform = 'scale(0.985)' }}
                 onMouseUp={(e) => { e.target.style.transform = 'scale(1)' }}
                 onMouseLeave={(e) => { e.target.style.transform = 'scale(1)' }}
-                onTouchStart={(e) => { if (!loading && email.trim()) e.currentTarget.style.transform = 'scale(0.98)' }}
-                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
               >
                 {loading ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                    Sending link...
+                    <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                    Sending magic link...
                   </span>
-                ) : 'Send Magic Link →'}
+                ) : 'Continue with Email'}
               </button>
-
-              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', textAlign: 'center', marginTop: 14, lineHeight: 1.4 }}>
-                No password. We'll send a secure sign-in link to your inbox.
-              </p>
             </form>
           )}
         </div>
-
-        <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', textAlign: 'center', marginTop: 24 }}>
-          Fast · Minimal · Private
-        </p>
       </div>
     </div>
   )

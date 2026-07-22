@@ -29,7 +29,7 @@ export default function Dashboard() {
       if (mobileView === 'chat') {
         e.preventDefault()
         setMobileView('list')
-        setTimeout(() => setActiveConversation(null), 300)
+        setActiveConversation(null)
       }
     }
 
@@ -51,7 +51,7 @@ export default function Dashboard() {
       window.history.back()
     } else {
       setMobileView('list')
-      setTimeout(() => setActiveConversation(null), 300)
+      setActiveConversation(null)
     }
   }, [])
 
@@ -97,7 +97,7 @@ export default function Dashboard() {
     loading: convsLoading,
   }
 
-  /* ── Mobile: full-height sliding panels ── */
+  /* ── Mobile: zero-shake instant view swap ── */
   if (isMobile) {
     return (
       <div style={{
@@ -106,29 +106,11 @@ export default function Dashboard() {
         background: 'var(--c-bg)',
         overflow: 'hidden',
       }}>
-        {/* List panel */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          transform: mobileView === 'chat' ? 'translateX(-100%)' : 'translateX(0)',
-          transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
-        }}>
+        {mobileView === 'list' ? (
           <ConversationList {...sharedListProps} />
-        </div>
-
-        {/* Chat panel */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          transform: mobileView === 'chat' ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
-        }}>
-          {activeConversation && (
-            <ChatView conversation={activeConversation} onBack={handleBack} />
-          )}
-        </div>
+        ) : (
+          <ChatView conversation={activeConversation} onBack={handleBack} />
+        )}
       </div>
     )
   }
@@ -161,7 +143,6 @@ export default function Dashboard() {
 
       {/* App frame */}
       <div
-        className="fade-in-scale"
         style={{
           width: '100%',
           maxWidth: 1260,
