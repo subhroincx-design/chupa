@@ -43,6 +43,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
   const [isOtherTyping, setIsOtherTyping] = useState(false)
+  const [isOtherReading, setIsOtherReading] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const messagesEndRef = useRef(null)
   const scrollRef = useRef(null)
@@ -51,27 +52,59 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
 
   const isOtherOnline = isUserOnline(conversation?.other_user_id)
 
-  // Smart Persistent Delivered Checkmark Tracking
-  const [deliveredIds, setDeliveredIds] = useState(() => {
+  // Smart Persistent Read / Seen Checkmark Tracking
+  const [readMessageIds, setReadMessageIds] = useState(() => {
     try {
-      const saved = localStorage.getItem('chupa-delivered-ids')
+      const saved = localStorage.getItem('chupa-read-ids')
       return saved ? new Set(JSON.parse(saved)) : new Set()
     } catch {
       return new Set()
     }
   })
 
-  // Whenever recipient is online OR messages arrive, mark messages delivered permanently
+  // Realtime Active Chat Reader Channel — tracks if recipient currently HAS THIS CHAT OPEN
+  useEffect(() => {
+    if (!conversation?.conversation_id || !user) return
+
+    const readChannel = supabase.channel(`read-chat-${conversation.conversation_id}`, {
+      config: { presence: { key: user.id } },
+    })
+
+    readChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = readChannel.presenceState()
+        const otherId = conversation.other_user_id
+        const isReading = !!state[otherId]
+        setIsOtherReading(isReading)
+      })
+      .on('presence', { event: 'join' }, ({ key }) => {
+        if (key === conversation.other_user_id) setIsOtherReading(true)
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === conversation.other_user_id) setIsOtherReading(false)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await readChannel.track({ reading_at: new Date().toISOString() })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(readChannel)
+    }
+  }, [conversation?.conversation_id, conversation?.other_user_id, user])
+
+  // Upgrade messages to double checkmark ONLY when recipient opens and reads this chat
   useEffect(() => {
     if (!messages.length) return
 
-    setDeliveredIds((prev) => {
+    setReadMessageIds((prev) => {
       let changed = false
       const next = new Set(prev)
 
       messages.forEach((msg) => {
-        // If other user is online OR message was already delivered -> mark delivered permanently
-        if (isOtherOnline || next.has(msg.id)) {
+        // Upgrade to read (✓✓) if recipient is actively reading this chat OR message was previously read
+        if (isOtherReading || next.has(msg.id)) {
           if (!next.has(msg.id)) {
             next.add(msg.id)
             changed = true
@@ -81,12 +114,12 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
 
       if (changed) {
         try {
-          localStorage.setItem('chupa-delivered-ids', JSON.stringify(Array.from(next)))
+          localStorage.setItem('chupa-read-ids', JSON.stringify(Array.from(next)))
         } catch { /* ignore quota */ }
       }
       return changed ? next : prev
     })
-  }, [messages, isOtherOnline])
+  }, [messages, isOtherReading])
 
   // Block user state stored in localStorage
   const [isBlocked, setIsBlocked] = useState(() => {
@@ -395,7 +428,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
               dateLabel={dateLabel}
               isConsecutive={isConsecutive}
               senderName={msg.sender_id === user?.id ? 'You' : conversation.other_user_name}
-              isDelivered={deliveredIds.has(msg.id) || isOtherOnline}
+              isDelivered={readMessageIds.has(msg.id) || isOtherReading}
               onReply={(m) => setReplyingTo(m)}
               onDelete={deleteMessage}
             />
