@@ -49,7 +49,6 @@ function EditModal({ title, value, onSave, onClose, maxLength, info }) {
           value={input}
           onChange={(e) => setInput(e.target.value.slice(0, maxLength || 50))}
           autoFocus
-          /* 16px prevents iOS zoom */
           style={{
             width: '100%', padding: '12px 14px',
             fontSize: 16,
@@ -96,6 +95,7 @@ export default function ProfileMenu() {
   const [open, setOpen] = useState(false)
   const [editField, setEditField] = useState(null)
   const [showAvatarUpload, setShowAvatarUpload] = useState(false)
+  const [copiedHandle, setCopiedHandle] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -109,6 +109,14 @@ export default function ProfileMenu() {
       document.removeEventListener('touchstart', handler)
     }
   }, [])
+
+  const handleCopyHandle = () => {
+    if (profile?.username) {
+      navigator.clipboard.writeText(`@${profile.username}`)
+      setCopiedHandle(true)
+      setTimeout(() => setCopiedHandle(false), 1500)
+    }
+  }
 
   const handleThemeToggle = () => {
     const html = document.documentElement
@@ -131,12 +139,12 @@ export default function ProfileMenu() {
   }
 
   const menuItemStyle = {
-    width: '100%', padding: '12px 14px',
-    fontSize: 14, textAlign: 'left',
+    width: '100%', padding: '11px 14px',
+    fontSize: 13.5, textAlign: 'left',
     color: 'var(--c-text)', background: 'none',
     cursor: 'pointer', transition: 'background 100ms',
     border: 'none', display: 'flex', alignItems: 'center', gap: 10,
-    minHeight: 46,
+    minHeight: 44,
     WebkitTapHighlightColor: 'transparent',
   }
 
@@ -162,7 +170,6 @@ export default function ProfileMenu() {
 
       {open && (
         <div
-          className="fade-in-scale"
           style={{
             position: 'absolute', right: 0, top: '100%', marginTop: 8,
             width: 230,
@@ -188,6 +195,11 @@ export default function ProfileMenu() {
 
           {/* Actions */}
           <div style={{ padding: '4px 0' }}>
+            <button style={menuItemStyle} onClick={handleCopyHandle}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>🔗</span> <span>{copiedHandle ? '✓ Handle copied!' : 'Copy handle'}</span>
+            </button>
             <button style={menuItemStyle} onClick={() => { setShowAvatarUpload(true); setOpen(false) }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
