@@ -1,0 +1,25 @@
+{
+  "short_name": "Chupa",
+  "name": "Chupa — Distraction-Free Messaging",
+  "description": "Fast, private, distraction-free messaging web app.",
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0A0A0E",
+  "theme_color": "#059669",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["social", "chat", "messaging"]
+}
