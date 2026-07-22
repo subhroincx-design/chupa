@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import Logo from '../components/Logo'
 
 export default function Login() {
+  const { authError } = useAuth()
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+
+  useEffect(() => {
+    if (authError) {
+      setError(authError)
+    }
+  }, [authError])
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -194,7 +202,6 @@ export default function Login() {
                 autoComplete="email"
                 autoFocus
                 required
-                /* 16px prevents iOS zoom on focus */
                 style={{
                   width: '100%', padding: '13px 16px',
                   fontSize: 16,

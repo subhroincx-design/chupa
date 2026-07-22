@@ -21,16 +21,38 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // Smart Mobile Hardware Back Button Handling (popstate listener)
+  useEffect(() => {
+    if (!isMobile) return
+
+    const handlePopState = (e) => {
+      if (mobileView === 'chat') {
+        e.preventDefault()
+        setMobileView('list')
+        setTimeout(() => setActiveConversation(null), 300)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [isMobile, mobileView])
+
   const handleSelectConversation = useCallback((conv) => {
     setActiveConversation(conv)
     setMobileView('chat')
     clearSearch()
+    if (window.innerWidth < 768) {
+      window.history.pushState({ chat: true }, '')
+    }
   }, [clearSearch])
 
   const handleBack = useCallback(() => {
-    setMobileView('list')
-    // Small delay so animation doesn't flash
-    setTimeout(() => setActiveConversation(null), 300)
+    if (window.history.state?.chat) {
+      window.history.back()
+    } else {
+      setMobileView('list')
+      setTimeout(() => setActiveConversation(null), 300)
+    }
   }, [])
 
   const handleSearchResultClick = useCallback(
@@ -52,6 +74,9 @@ export default function Dashboard() {
         setActiveConversation(conv)
         setMobileView('chat')
         clearSearch()
+        if (window.innerWidth < 768) {
+          window.history.pushState({ chat: true }, '')
+        }
       } catch (err) {
         console.error('Failed to create conversation:', err)
       }

@@ -46,7 +46,7 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { user, profile, loading, profileLoading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -61,9 +61,9 @@ export default function App() {
     }
   }, [])
 
-  // Auto-redirect based on auth state
+  // Smart Auto-redirect based on auth state
   useEffect(() => {
-    if (loading || profileLoading) return
+    if (loading) return
 
     const path = location.pathname
 
@@ -80,9 +80,9 @@ export default function App() {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, profileLoading, navigate, location.pathname])
+  }, [user, profile, loading, navigate, location.pathname])
 
-  if (loading || profileLoading) return <LoadingScreen />
+  if (loading) return <LoadingScreen />
 
   return (
     <Routes>
