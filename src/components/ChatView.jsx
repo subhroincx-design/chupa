@@ -43,6 +43,7 @@ export default function ChatView({ conversation, onBack }) {
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
   const [isOtherTyping, setIsOtherTyping] = useState(false)
+  const [isOtherOnline, setIsOtherOnline] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const messagesEndRef = useRef(null)
   const scrollRef = useRef(null)
@@ -83,14 +84,38 @@ export default function ChatView({ conversation, onBack }) {
     setShowOptions(false)
   }
 
-  // Supabase Realtime Broadcast channel for Typing Indicators
+  // Supabase Realtime Presence & Typing Channel
   useEffect(() => {
     if (!conversation?.conversation_id || !user) return
 
-    const channel = supabase.channel(`typing-${conversation.conversation_id}`)
-    channelRef.current = channel
+    const presenceChannel = supabase.channel('online-presence', {
+      config: { presence: { key: user.id } },
+    })
 
-    channel
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState()
+        const otherId = conversation.other_user_id
+        const online = !!state[otherId]
+        setIsOtherOnline(online)
+      })
+      .on('presence', { event: 'join' }, ({ key }) => {
+        if (key === conversation.other_user_id) setIsOtherOnline(true)
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === conversation.other_user_id) setIsOtherOnline(false)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ online_at: new Date().toISOString() })
+        }
+      })
+
+    // Separate typing broadcast channel
+    const typingChannel = supabase.channel(`typing-${conversation.conversation_id}`)
+    channelRef.current = typingChannel
+
+    typingChannel
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.userId !== user.id) {
           setIsOtherTyping(true)
@@ -102,9 +127,10 @@ export default function ChatView({ conversation, onBack }) {
 
     return () => {
       clearTimeout(typingTimer.current)
-      supabase.removeChannel(channel)
+      supabase.removeChannel(presenceChannel)
+      supabase.removeChannel(typingChannel)
     }
-  }, [conversation?.conversation_id, user])
+  }, [conversation?.conversation_id, conversation?.other_user_id, user])
 
   const handleSendTyping = useCallback(() => {
     if (channelRef.current && user) {
@@ -218,20 +244,27 @@ export default function ChatView({ conversation, onBack }) {
 
         <div style={{ position: 'relative' }}>
           <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={36} />
-          <span style={{
-            position: 'absolute', bottom: 0, right: 0,
-            width: 9, height: 9, borderRadius: '50%',
-            background: 'var(--c-accent)',
-            border: '1.5px solid var(--c-surface)',
-          }} />
+          {isOtherOnline && (
+            <span style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 9, height: 9, borderRadius: '50%',
+              background: 'var(--c-accent)',
+              border: '1.5px solid var(--c-surface)',
+            }} />
+          )}
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
             {conversation.other_user_name}
           </p>
-          <p style={{ fontSize: 11.5, color: isOtherTyping ? 'var(--c-accent)' : 'var(--c-text-tertiary)', margin: 0, lineHeight: 1, fontWeight: isOtherTyping ? 600 : 400 }}>
-            {isOtherTyping ? 'typing...' : 'Online'}
+          <p style={{
+            fontSize: 11.5,
+            color: isOtherTyping ? 'var(--c-accent)' : isOtherOnline ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
+            margin: 0, lineHeight: 1,
+            fontWeight: isOtherTyping || isOtherOnline ? 600 : 400,
+          }}>
+            {isOtherTyping ? 'typing...' : isOtherOnline ? 'Online' : 'Offline'}
           </p>
         </div>
 
