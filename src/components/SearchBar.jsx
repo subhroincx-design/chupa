@@ -1,16 +1,33 @@
+import { useEffect, useRef } from 'react'
+
 export default function SearchBar({ value, onChange, onClear }) {
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
     <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--c-border)', flexShrink: 0 }}>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <svg
-          style={{ position: 'absolute', left: 10, pointerEvents: 'none', flexShrink: 0 }}
+          style={{ position: 'absolute', left: 12, pointerEvents: 'none', flexShrink: 0 }}
           width="15" height="15" viewBox="0 0 24 24" fill="none"
           stroke="var(--c-text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
         >
           <circle cx="11" cy="11" r="8" />
           <path d="M21 21l-4.35-4.35" />
         </svg>
+
         <input
+          ref={inputRef}
           id="user-search"
           type="search"
           value={value}
@@ -23,7 +40,6 @@ export default function SearchBar({ value, onChange, onClear }) {
           style={{
             width: '100%',
             padding: '9px 36px 9px 34px',
-            /* 16px prevents iOS zoom */
             fontSize: 16,
             background: 'var(--c-bg)',
             border: '1.5px solid var(--c-border)',
@@ -40,7 +56,8 @@ export default function SearchBar({ value, onChange, onClear }) {
             e.target.style.boxShadow = 'none'
           }}
         />
-        {value && (
+
+        {value ? (
           <button
             onClick={onClear}
             aria-label="Clear search"
@@ -59,6 +76,19 @@ export default function SearchBar({ value, onChange, onClear }) {
           >
             ✕
           </button>
+        ) : (
+          <span style={{
+            position: 'absolute', right: 12,
+            fontSize: 10, fontWeight: 600,
+            color: 'var(--c-text-tertiary)',
+            background: 'var(--c-surface-hover)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 4, padding: '2px 5px',
+            pointerEvents: 'none',
+            fontFamily: 'monospace',
+          }}>
+            ⌘K
+          </span>
         )}
       </div>
     </div>
