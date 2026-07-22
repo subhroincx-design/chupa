@@ -21,7 +21,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Smart Mobile Hardware Back Button Handling (popstate listener)
+  // Smart Mobile Hardware Back Button Handling
   useEffect(() => {
     if (!isMobile) return
 
@@ -112,7 +112,7 @@ export default function Dashboard() {
     loading: convsLoading,
   }
 
-  /* ── Mobile: zero-shake instant view swap ── */
+  /* ── Mobile View (single panel) ── */
   if (isMobile) {
     return (
       <div style={{
@@ -130,53 +130,20 @@ export default function Dashboard() {
     )
   }
 
-  /* ── Desktop: floating card ── */
+  /* ── Desktop PC View (WhatsApp Web style full height dual-pane) ── */
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
+      width: '100vw',
+      height: '100vh',
       background: 'var(--c-bg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
+      display: 'grid',
+      gridTemplateColumns: '320px 1fr',
       overflow: 'hidden',
     }}>
-      {/* Ambient glow blobs */}
-      <div style={{
-        position: 'absolute', top: '-10%', left: '10%',
-        width: 700, height: 700,
-        background: 'radial-gradient(circle, rgba(5,150,105,0.07) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-10%', right: '5%',
-        width: 500, height: 500,
-        background: 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* App frame */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 1260,
-          height: '100%',
-          maxHeight: 880,
-          display: 'grid',
-          gridTemplateColumns: '300px 1fr',
-          background: 'var(--c-surface)',
-          border: '1px solid var(--c-border)',
-          borderRadius: 18,
-          boxShadow: 'var(--shadow-lg)',
-          overflow: 'hidden',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <ConversationList {...sharedListProps} />
-        <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
-      </div>
+      <ConversationList {...sharedListProps} />
+      <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
     </div>
   )
 }
