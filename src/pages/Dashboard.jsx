@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useConversations } from '../hooks/useConversations'
 import { useSearch } from '../hooks/useSearch'
 import { supabase } from '../lib/supabase'
+import { requestNotificationPermission } from '../utils/notifications'
 import ConversationList from '../components/ConversationList'
 import ChatView from '../components/ChatView'
 
@@ -14,6 +15,11 @@ export default function Dashboard() {
   const [activeConversation, setActiveConversation] = useState(null)
   const [mobileView, setMobileView] = useState('list')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+
+  // Request Notification permission on Android & Desktop on dashboard mount
+  useEffect(() => {
+    requestNotificationPermission().catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)

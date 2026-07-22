@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { sendLocalNotification } from '../utils/notifications'
 
 let globalConversationsCache = []
 
@@ -47,7 +48,7 @@ export function useConversations() {
     return () => { isMounted.current = false }
   }, [fetchConversations])
 
-  // Subscribe to realtime message insertions to update conversation list instantly
+  // Subscribe to realtime message insertions to update conversation list & trigger native notifications
   useEffect(() => {
     if (!user) return
 
@@ -62,11 +63,19 @@ export function useConversations() {
         },
         (payload) => {
           const newMsg = payload.new
+
           setConversations((prev) => {
             const idx = prev.findIndex((c) => c.conversation_id === newMsg.conversation_id)
             if (idx !== -1) {
+              const matchedConv = prev[idx]
+
+              // Trigger native Android & Web notification if message is from another user
+              if (newMsg.sender_id !== user.id) {
+                sendLocalNotification(matchedConv.other_user_name || 'Chupa', newMsg.content)
+              }
+
               const updatedConv = {
-                ...prev[idx],
+                ...matchedConv,
                 last_message: newMsg.content,
                 last_message_at: newMsg.created_at,
               }
@@ -92,7 +101,6 @@ export function useConversations() {
     async (convId) => {
       if (!convId || !user) return false
 
-      // Optimistic remove
       setConversations((prev) => {
         const next = prev.filter((c) => c.conversation_id !== convId)
         globalConversationsCache = next

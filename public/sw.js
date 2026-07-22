@@ -48,3 +48,21 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   )
 })
+
+// Handle Notification Clicks on Android & PC
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes('/dashboard') && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/dashboard')
+      }
+    })
+  )
+})
