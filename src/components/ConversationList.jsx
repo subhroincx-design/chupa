@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import SearchBar from './SearchBar'
 import SearchResult from './SearchResult'
 import ProfileMenu from './ProfileMenu'
@@ -21,7 +23,7 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-function ConversationItem({ conversation, isActive, isPinned, onPinToggle, onClick }) {
+function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinToggle, onClick }) {
   return (
     <div
       style={{
@@ -48,7 +50,17 @@ function ConversationItem({ conversation, isActive, isPinned, onPinToggle, onCli
         onMouseEnter={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'var(--c-surface-hover)' }}
         onMouseLeave={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'transparent' }}
       >
-        <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
+          {isOnline && (
+            <span style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 10, height: 10, borderRadius: '50%',
+              background: 'var(--c-accent)',
+              border: '2px solid var(--c-surface)',
+            }} />
+          )}
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
@@ -106,7 +118,9 @@ export default function ConversationList({
   searchQuery, onSearch, onClearSearch,
   searchResults, searching, onSearchResultClick, loading,
 }) {
+  const { user } = useAuth()
   const parentRef = useRef(null)
+  const [onlineUserIds, setOnlineUserIds] = useState(new Set())
 
   // Pinned chats stored in localStorage
   const [pinnedIds, setPinnedIds] = useState(() => {
@@ -117,6 +131,40 @@ export default function ConversationList({
       return []
     }
   })
+
+  // Supabase Realtime Presence tracking for list sidebar
+  useEffect(() => {
+    if (!user) return
+
+    const presenceChannel = supabase.channel('online-presence', {
+      config: { presence: { key: user.id } },
+    })
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState()
+        setOnlineUserIds(new Set(Object.keys(state)))
+      })
+      .on('presence', { event: 'join' }, ({ key }) => {
+        setOnlineUserIds((prev) => new Set([...prev, key]))
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ online_at: new Date().toISOString() })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(presenceChannel)
+    }
+  }, [user])
 
   const togglePin = (convId) => {
     setPinnedIds((prev) => {
@@ -153,8 +201,9 @@ export default function ConversationList({
       borderRight: '1px solid var(--c-border)',
       background: 'var(--c-surface)',
       paddingLeft: 'var(--safe-left)',
+      position: 'relative',
     }}>
-      {/* Header */}
+      {/* Header — with position relative & high zIndex so ProfileMenu dropdown renders on top */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -164,6 +213,8 @@ export default function ConversationList({
         borderBottom: '1px solid var(--c-border)',
         background: 'var(--c-surface)',
         flexShrink: 0,
+        position: 'relative',
+        zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Logo size={28} />
@@ -250,6 +301,7 @@ export default function ConversationList({
                     conversation={conv}
                     isActive={activeId === conv.conversation_id}
                     isPinned={pinnedIds.includes(conv.conversation_id)}
+                    isOnline={onlineUserIds.has(conv.other_user_id)}
                     onPinToggle={togglePin}
                     onClick={onSelect}
                   />
@@ -264,6 +316,7 @@ export default function ConversationList({
               conversation={conv}
               isActive={activeId === conv.conversation_id}
               isPinned={pinnedIds.includes(conv.conversation_id)}
+              isOnline={onlineUserIds.has(conv.other_user_id)}
               onPinToggle={togglePin}
               onClick={onSelect}
             />
