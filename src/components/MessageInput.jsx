@@ -4,7 +4,22 @@ import { sanitizeMessage } from '../utils/sanitize'
 export default function MessageInput({ onSend, disabled, replyingTo, onCancelReply, onTyping }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const inputRef = useRef(null)
+
+  // Detect virtual software keyboard open/close state via Visual Viewport API
+  useEffect(() => {
+    if (!window.visualViewport) return
+
+    const handleResize = () => {
+      // If visualViewport height is significantly smaller than window.innerHeight, keyboard is active
+      const keyboardActive = window.innerHeight - window.visualViewport.height > 120
+      setIsKeyboardOpen(keyboardActive)
+    }
+
+    window.visualViewport.addEventListener('resize', handleResize)
+    return () => window.visualViewport.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     if (replyingTo) {
@@ -101,7 +116,8 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
         alignItems: 'center',
         gap: 8,
         padding: '10px 12px',
-        paddingBottom: 'calc(10px + var(--safe-bottom))',
+        paddingBottom: isKeyboardOpen ? '10px' : 'calc(10px + var(--safe-bottom))',
+        background: 'var(--c-surface)',
       }}>
         <div style={{ flex: 1, position: 'relative' }}>
           <input
