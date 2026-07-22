@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
@@ -50,6 +50,9 @@ export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Detect if user landed from an Auth Redirect Link (magic link token in URL hash or search params)
+  const isAuthCallback = location.hash.includes('access_token=') || location.search.includes('code=') || location.hash.includes('error=')
+
   // Initialize theme from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('chupa-theme')
@@ -76,13 +79,15 @@ export default function App() {
         navigate('/setup', { replace: true })
       }
     } else {
-      if (path !== '/login' && path !== '/verify-otp') {
+      // Don't bounce to /login if we are currently handling magic link callback token
+      if (path !== '/login' && path !== '/verify-otp' && !isAuthCallback) {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, profileLoading, navigate, location.pathname])
+  }, [user, profile, loading, profileLoading, navigate, location.pathname, isAuthCallback])
 
-  if (loading) return <LoadingScreen />
+  // Show loading screen while session is being fetched OR while magic link token is processing
+  if (loading || (isAuthCallback && !user)) return <LoadingScreen />
 
   return (
     <Routes>

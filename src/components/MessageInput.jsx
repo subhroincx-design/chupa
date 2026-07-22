@@ -14,10 +14,6 @@ export default function MessageInput({ onSend, disabled }) {
     const success = await onSend(sanitized)
     if (success !== false) setText('')
     setSending(false)
-    // Refocus AFTER React re-render so keyboard stays open on iOS/Android
-    requestAnimationFrame(() => {
-      inputRef.current?.focus()
-    })
   }
 
   const handleKeyDown = (e) => {
