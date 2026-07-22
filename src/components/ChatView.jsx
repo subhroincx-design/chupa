@@ -38,7 +38,7 @@ function groupMessagesByDate(messages) {
   return groups
 }
 
-export default function ChatView({ conversation, onBack }) {
+export default function ChatView({ conversation, onBack, onDeleteChat }) {
   const { user } = useAuth()
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
@@ -291,17 +291,32 @@ export default function ChatView({ conversation, onBack }) {
             borderRadius: 10,
             boxShadow: 'var(--shadow-md)',
             zIndex: 100, overflow: 'hidden',
-            minWidth: 150,
+            minWidth: 160,
           }}>
             <button
               onClick={toggleBlock}
               style={{
                 width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
-                color: isBlocked ? 'var(--c-accent)' : 'var(--c-danger)',
+                color: isBlocked ? 'var(--c-accent)' : 'var(--c-text)',
                 background: 'none', cursor: 'pointer',
               }}
             >
               {isBlocked ? '🔓 Unblock user' : '🚫 Block user'}
+            </button>
+            <button
+              onClick={() => {
+                setShowOptions(false)
+                if (window.confirm('Delete this conversation? This will clear all messages.')) {
+                  onDeleteChat?.(conversation.conversation_id)
+                }
+              }}
+              style={{
+                width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
+                color: 'var(--c-danger)', background: 'none', cursor: 'pointer',
+                borderTop: '1px solid var(--c-border)',
+              }}
+            >
+              🗑 Delete conversation
             </button>
           </div>
         )}

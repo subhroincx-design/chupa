@@ -8,7 +8,7 @@ import ChatView from '../components/ChatView'
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { conversations, loading: convsLoading } = useConversations()
+  const { conversations, loading: convsLoading, deleteConversation } = useConversations()
   const { query, results, searching, search, clearSearch } = useSearch()
 
   const [activeConversation, setActiveConversation] = useState(null)
@@ -55,6 +55,20 @@ export default function Dashboard() {
     }
   }, [])
 
+  const handleDeleteChat = useCallback(
+    async (convId) => {
+      if (!convId) return
+      const success = await deleteConversation(convId)
+      if (success) {
+        if (activeConversation?.conversation_id === convId) {
+          setActiveConversation(null)
+          setMobileView('list')
+        }
+      }
+    },
+    [deleteConversation, activeConversation]
+  )
+
   const handleSearchResultClick = useCallback(
     async (selectedUser) => {
       try {
@@ -88,6 +102,7 @@ export default function Dashboard() {
     conversations,
     activeId: activeConversation?.conversation_id,
     onSelect: handleSelectConversation,
+    onDeleteChat: handleDeleteChat,
     searchQuery: query,
     onSearch: search,
     onClearSearch: clearSearch,
@@ -109,7 +124,7 @@ export default function Dashboard() {
         {mobileView === 'list' ? (
           <ConversationList {...sharedListProps} />
         ) : (
-          <ChatView conversation={activeConversation} onBack={handleBack} />
+          <ChatView conversation={activeConversation} onBack={handleBack} onDeleteChat={handleDeleteChat} />
         )}
       </div>
     )
@@ -160,7 +175,7 @@ export default function Dashboard() {
         }}
       >
         <ConversationList {...sharedListProps} />
-        <ChatView conversation={activeConversation} />
+        <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
       </div>
     </div>
   )

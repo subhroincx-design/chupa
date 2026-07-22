@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
-// Global in-memory cache for ultra-fast 0ms navigation
 let globalConversationsCache = []
 
 export function useConversations() {
@@ -63,7 +62,6 @@ export function useConversations() {
         },
         (payload) => {
           const newMsg = payload.new
-          // Optimistically update conversation order in local state without full reload
           setConversations((prev) => {
             const idx = prev.findIndex((c) => c.conversation_id === newMsg.conversation_id)
             if (idx !== -1) {
@@ -77,7 +75,6 @@ export function useConversations() {
               globalConversationsCache = updatedList
               return updatedList
             }
-            // If new conversation, refetch
             fetchConversations(false)
             return prev
           })
@@ -90,5 +87,38 @@ export function useConversations() {
     }
   }, [user, fetchConversations])
 
-  return { conversations, loading, error, refetch: () => fetchConversations(false) }
+  // Delete conversation
+  const deleteConversation = useCallback(
+    async (convId) => {
+      if (!convId || !user) return false
+
+      // Optimistic remove
+      setConversations((prev) => {
+        const next = prev.filter((c) => c.conversation_id !== convId)
+        globalConversationsCache = next
+        return next
+      })
+
+      const { error: delErr } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', convId)
+
+      if (delErr) {
+        console.error('Delete conversation error:', delErr)
+        fetchConversations(false)
+        return false
+      }
+      return true
+    },
+    [user, fetchConversations]
+  )
+
+  return {
+    conversations,
+    loading,
+    error,
+    refetch: () => fetchConversations(false),
+    deleteConversation,
+  }
 }
