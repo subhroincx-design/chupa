@@ -51,6 +51,43 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
 
   const isOtherOnline = isUserOnline(conversation?.other_user_id)
 
+  // Smart Persistent Delivered Checkmark Tracking
+  const [deliveredIds, setDeliveredIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chupa-delivered-ids')
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  // Whenever recipient is online OR messages arrive, mark messages delivered permanently
+  useEffect(() => {
+    if (!messages.length) return
+
+    setDeliveredIds((prev) => {
+      let changed = false
+      const next = new Set(prev)
+
+      messages.forEach((msg) => {
+        // If other user is online OR message was already delivered -> mark delivered permanently
+        if (isOtherOnline || next.has(msg.id)) {
+          if (!next.has(msg.id)) {
+            next.add(msg.id)
+            changed = true
+          }
+        }
+      })
+
+      if (changed) {
+        try {
+          localStorage.setItem('chupa-delivered-ids', JSON.stringify(Array.from(next)))
+        } catch { /* ignore quota */ }
+      }
+      return changed ? next : prev
+    })
+  }, [messages, isOtherOnline])
+
   // Block user state stored in localStorage
   const [isBlocked, setIsBlocked] = useState(() => {
     try {
@@ -358,7 +395,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
               dateLabel={dateLabel}
               isConsecutive={isConsecutive}
               senderName={msg.sender_id === user?.id ? 'You' : conversation.other_user_name}
-              isOtherOnline={isOtherOnline}
+              isDelivered={deliveredIds.has(msg.id) || isOtherOnline}
               onReply={(m) => setReplyingTo(m)}
               onDelete={deleteMessage}
             />

@@ -29,7 +29,7 @@ function DateSeparator({ label }) {
 }
 
 const MessageBubble = memo(function MessageBubble({
-  message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isOtherOnline,
+  message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isDelivered,
 }) {
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -196,12 +196,12 @@ const MessageBubble = memo(function MessageBubble({
             {isSender && (
               <span style={{
                 fontSize: 10,
-                color: isOtherOnline ? '#ffffff' : 'rgba(255,255,255,0.65)',
+                color: isDelivered ? '#ffffff' : 'rgba(255,255,255,0.65)',
                 letterSpacing: -1.5,
                 fontWeight: 700,
                 userSelect: 'none',
               }}>
-                {isOtherOnline ? '✓✓' : '✓'}
+                {isDelivered ? '✓✓' : '✓'}
               </span>
             )}
           </div>
