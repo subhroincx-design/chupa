@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import SearchBar from './SearchBar'
 import SearchResult from './SearchResult'
@@ -21,44 +21,71 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-function ConversationItem({ conversation, isActive, onClick }) {
+function ConversationItem({ conversation, isActive, isPinned, onPinToggle, onClick }) {
   return (
-    <button
-      id={`conversation-${conversation.conversation_id}`}
-      onClick={() => onClick(conversation)}
+    <div
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '11px 14px',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
         background: isActive ? 'var(--c-accent-light)' : 'transparent',
         borderLeft: `3px solid ${isActive ? 'var(--c-accent)' : 'transparent'}`,
-        textAlign: 'left',
         transition: 'background 120ms',
-        cursor: 'pointer',
-        WebkitTapHighlightColor: 'transparent',
-        /* Ensure min touch target on mobile */
-        minHeight: 60,
       }}
-      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--c-surface-hover)' }}
-      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
     >
-      <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0, lineHeight: 1.3 }}>
-            {conversation.other_user_name}
+      <button
+        id={`conversation-${conversation.conversation_id}`}
+        onClick={() => onClick(conversation)}
+        style={{
+          flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+          padding: '11px 14px',
+          textAlign: 'left',
+          cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent',
+          minHeight: 60,
+          minWidth: 0,
+        }}
+        onMouseEnter={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'var(--c-surface-hover)' }}
+        onMouseLeave={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'transparent' }}
+      >
+        <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              {isPinned && <span style={{ fontSize: 11 }}>📌</span>}
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0, lineHeight: 1.3 }}>
+                {conversation.other_user_name}
+              </p>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--c-text-tertiary)', flexShrink: 0, fontWeight: 500, lineHeight: 1 }}>
+              {formatRelativeTime(conversation.last_message_at || conversation.conversation_created_at)}
+            </span>
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>
+            {conversation.last_message
+              ? conversation.last_message
+              : <span style={{ color: 'var(--c-text-tertiary)', fontStyle: 'italic' }}>No messages yet</span>
+            }
           </p>
-          <span style={{ fontSize: 11, color: 'var(--c-text-tertiary)', flexShrink: 0, fontWeight: 500, lineHeight: 1 }}>
-            {formatRelativeTime(conversation.last_message_at || conversation.conversation_created_at)}
-          </span>
         </div>
-        <p style={{ fontSize: 12.5, color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>
-          {conversation.last_message
-            ? conversation.last_message
-            : <span style={{ color: 'var(--c-text-tertiary)', fontStyle: 'italic' }}>No messages yet</span>
-          }
-        </p>
-      </div>
-    </button>
+      </button>
+
+      {/* Pin toggle button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onPinToggle(conversation.conversation_id) }}
+        title={isPinned ? 'Unpin chat' : 'Pin chat'}
+        style={{
+          padding: '8px 10px',
+          fontSize: 12,
+          color: isPinned ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
+          cursor: 'pointer',
+          opacity: isPinned ? 1 : 0.4,
+          transition: 'opacity 120ms',
+        }}
+      >
+        {isPinned ? '📌' : '📍'}
+      </button>
+    </div>
   )
 }
 
@@ -80,9 +107,38 @@ export default function ConversationList({
   searchResults, searching, onSearchResultClick, loading,
 }) {
   const parentRef = useRef(null)
-  const shouldVirtualize = conversations.length > 50
+
+  // Pinned chats stored in localStorage
+  const [pinnedIds, setPinnedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chupa-pinned-chats')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const togglePin = (convId) => {
+    setPinnedIds((prev) => {
+      const next = prev.includes(convId) ? prev.filter((id) => id !== convId) : [...prev, convId]
+      try {
+        localStorage.setItem('chupa-pinned-chats', JSON.stringify(next))
+      } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  // Sort pinned conversations to the top
+  const sortedConversations = useMemo(() => {
+    if (!pinnedIds.length) return conversations
+    const pinned = conversations.filter((c) => pinnedIds.includes(c.conversation_id))
+    const unpinned = conversations.filter((c) => !pinnedIds.includes(c.conversation_id))
+    return [...pinned, ...unpinned]
+  }, [conversations, pinnedIds])
+
+  const shouldVirtualize = sortedConversations.length > 50
   const virtualizer = useVirtualizer({
-    count: conversations.length,
+    count: sortedConversations.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 64,
     overscan: 5,
@@ -96,10 +152,9 @@ export default function ConversationList({
       flexDirection: 'column',
       borderRight: '1px solid var(--c-border)',
       background: 'var(--c-surface)',
-      /* Safe area on notched phones */
       paddingLeft: 'var(--safe-left)',
     }}>
-      {/* Header — with safe-area-top */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -151,7 +206,6 @@ export default function ConversationList({
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          /* Safe area bottom padding */
           paddingBottom: 'var(--safe-bottom)',
         }}
       >
@@ -159,7 +213,7 @@ export default function ConversationList({
           <div>
             {[1, 2, 3, 4, 5].map((i) => <SkeletonConversation key={i} />)}
           </div>
-        ) : conversations.length === 0 ? (
+        ) : sortedConversations.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', padding: '60px 24px', textAlign: 'center',
@@ -184,7 +238,7 @@ export default function ConversationList({
         ) : shouldVirtualize ? (
           <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
             {virtualizer.getVirtualItems().map((vr) => {
-              const conv = conversations[vr.index]
+              const conv = sortedConversations[vr.index]
               return (
                 <div
                   key={conv.conversation_id}
@@ -192,17 +246,25 @@ export default function ConversationList({
                   ref={virtualizer.measureElement}
                   style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vr.start}px)` }}
                 >
-                  <ConversationItem conversation={conv} isActive={activeId === conv.conversation_id} onClick={onSelect} />
+                  <ConversationItem
+                    conversation={conv}
+                    isActive={activeId === conv.conversation_id}
+                    isPinned={pinnedIds.includes(conv.conversation_id)}
+                    onPinToggle={togglePin}
+                    onClick={onSelect}
+                  />
                 </div>
               )
             })}
           </div>
         ) : (
-          conversations.map((conv) => (
+          sortedConversations.map((conv) => (
             <ConversationItem
               key={conv.conversation_id}
               conversation={conv}
               isActive={activeId === conv.conversation_id}
+              isPinned={pinnedIds.includes(conv.conversation_id)}
+              onPinToggle={togglePin}
               onClick={onSelect}
             />
           ))

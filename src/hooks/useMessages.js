@@ -38,7 +38,7 @@ export function useMessages(conversationId) {
     fetchMessages()
   }, [fetchMessages])
 
-  // Realtime subscription
+  // Realtime subscription (INSERT & DELETE)
   useEffect(() => {
     if (!conversationId) return
 
@@ -59,6 +59,18 @@ export function useMessages(conversationId) {
           })
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -66,7 +78,7 @@ export function useMessages(conversationId) {
     }
   }, [conversationId])
 
-  // Send message with Anti-Spam & Anti-DDoS Rate Limiter
+  // Send message with Anti-Spam Rate Limiter
   const sendMessage = useCallback(
     async (content) => {
       if (!conversationId || !user || !content.trim()) return
@@ -99,5 +111,30 @@ export function useMessages(conversationId) {
     [conversationId, user]
   )
 
-  return { messages, loading, error, sendMessage }
+  // Delete message for everyone
+  const deleteMessage = useCallback(
+    async (messageId) => {
+      if (!messageId || !user) return false
+
+      // Optimistic delete in local state
+      setMessages((prev) => prev.filter((m) => m.id !== messageId))
+
+      const { error: delError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('sender_id', user.id)
+
+      if (delError) {
+        // Rollback on failure
+        fetchMessages()
+        setError(delError.message)
+        return false
+      }
+      return true
+    },
+    [user, fetchMessages]
+  )
+
+  return { messages, loading, error, sendMessage, deleteMessage }
 }
