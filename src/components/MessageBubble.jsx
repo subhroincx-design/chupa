@@ -18,9 +18,9 @@ function formatDateLabel(dateStr) {
 
 function DateSeparator({ label }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 10px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 10px' }}>
       <div style={{ flex: 1, height: 1, background: 'var(--c-border)' }} />
-      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--c-text-tertiary)', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-tertiary)', whiteSpace: 'nowrap', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
         {label}
       </span>
       <div style={{ flex: 1, height: 1, background: 'var(--c-border)' }} />
@@ -28,26 +28,35 @@ function DateSeparator({ label }) {
   )
 }
 
-const MessageBubble = memo(function MessageBubble({ message, isSender, showDate, dateLabel }) {
+const MessageBubble = memo(function MessageBubble({ message, isSender, showDate, dateLabel, isConsecutive }) {
+  // Border radius rules for grouped messages (iMessage / WhatsApp style)
+  let borderRadius = isSender ? '18px 18px 4px 18px' : '18px 18px 18px 4px'
+  if (isConsecutive && !showDate) {
+    borderRadius = isSender ? '18px 4px 4px 18px' : '4px 18px 18px 4px'
+  }
+
+  const marginTop = isConsecutive && !showDate ? 2 : 8
+
   return (
     <>
       {showDate && <DateSeparator label={dateLabel} />}
       <div
         className={isSender ? 'bubble-in-right' : 'bubble-in-left'}
-        style={{ display: 'flex', justifyContent: isSender ? 'flex-end' : 'flex-start', marginBottom: 4 }}
+        style={{ display: 'flex', justifyContent: isSender ? 'flex-end' : 'flex-start', marginTop }}
       >
         <div style={{
-          maxWidth: '72%',
-          padding: '9px 13px',
-          borderRadius: isSender ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+          maxWidth: '75%',
+          padding: '8px 12px 6px',
+          borderRadius,
           background: isSender ? 'var(--c-accent)' : 'var(--c-surface)',
           border: isSender ? 'none' : '1px solid var(--c-border)',
-          boxShadow: isSender ? '0 2px 6px rgba(5,150,105,0.2)' : 'var(--shadow-sm)',
+          boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
+          position: 'relative',
         }}>
           <p
             style={{
-              fontSize: 14,
-              lineHeight: 1.55,
+              fontSize: 14.5,
+              lineHeight: 1.45,
               wordBreak: 'break-word',
               whiteSpace: 'pre-wrap',
               color: isSender ? '#ffffff' : 'var(--c-text)',
@@ -55,15 +64,22 @@ const MessageBubble = memo(function MessageBubble({ message, isSender, showDate,
             }}
             ref={(el) => { if (el) el.textContent = message.content }}
           />
-          <p style={{
-            fontSize: 10,
-            marginTop: 4,
-            color: isSender ? 'rgba(255,255,255,0.5)' : 'var(--c-text-tertiary)',
-            textAlign: isSender ? 'right' : 'left',
-            margin: '4px 0 0',
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 4,
+            marginTop: 3,
           }}>
-            {formatTime(message.created_at)}
-          </p>
+            <span style={{
+              fontSize: 10,
+              color: isSender ? 'rgba(255,255,255,0.65)' : 'var(--c-text-tertiary)',
+              fontWeight: 500,
+              userSelect: 'none',
+            }}>
+              {formatTime(message.created_at)}
+            </span>
+          </div>
         </div>
       </div>
     </>

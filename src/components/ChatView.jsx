@@ -9,12 +9,32 @@ import Logo from './Logo'
 function groupMessagesByDate(messages) {
   const groups = []
   let lastDate = null
+  let lastSender = null
+  let lastTimestamp = null
+
   messages.forEach((msg) => {
-    const dateStr = new Date(msg.created_at).toDateString()
+    const msgDate = new Date(msg.created_at)
+    const dateStr = msgDate.toDateString()
     const showDate = dateStr !== lastDate
-    groups.push({ msg, showDate, dateLabel: showDate ? formatDateLabel(msg.created_at) : null })
+
+    // Consecutive if same sender, same day, and within 5 minutes
+    const isConsecutive = !showDate &&
+      lastSender === msg.sender_id &&
+      lastTimestamp &&
+      (msgDate - lastTimestamp < 5 * 60 * 1000)
+
+    groups.push({
+      msg,
+      showDate,
+      dateLabel: showDate ? formatDateLabel(msg.created_at) : null,
+      isConsecutive,
+    })
+
     lastDate = dateStr
+    lastSender = msg.sender_id
+    lastTimestamp = msgDate
   })
+
   return groups
 }
 
@@ -24,7 +44,7 @@ export default function ChatView({ conversation, onBack }) {
   const messagesEndRef = useRef(null)
   const scrollRef = useRef(null)
 
-  // Scroll to bottom — instant on first load, smooth on new messages
+  // Scroll to bottom — instant on conversation open, smooth on new message
   useEffect(() => {
     if (!messagesEndRef.current) return
     messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
@@ -34,6 +54,17 @@ export default function ChatView({ conversation, onBack }) {
     if (!messagesEndRef.current || !messages.length) return
     messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
+
+  // Desktop Escape key to close conversation / go back
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onBack) {
+        onBack()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onBack])
 
   /* ── Empty / welcome state ── */
   if (!conversation) {
@@ -61,7 +92,7 @@ export default function ChatView({ conversation, onBack }) {
             Select a chat or search for someone
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
           {['⚡ Instant', '🔒 Private', '✨ Minimal'].map((f) => (
             <span key={f} style={{ fontSize: 12, color: 'var(--c-text-tertiary)', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 99, padding: '4px 10px' }}>
               {f}
@@ -80,7 +111,6 @@ export default function ChatView({ conversation, onBack }) {
       display: 'flex',
       flexDirection: 'column',
       background: 'var(--c-bg)',
-      /* Prevent body scroll on iOS when chat is open */
       overflow: 'hidden',
     }}>
       {/* ── Chat header ── */}
@@ -131,8 +161,7 @@ export default function ChatView({ conversation, onBack }) {
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          padding: '12px 14px 6px',
-          /* Avoid content hidden under input on some browsers */
+          padding: '10px 14px 6px',
           overscrollBehavior: 'contain',
         }}
       >
@@ -162,13 +191,14 @@ export default function ChatView({ conversation, onBack }) {
             </div>
           </div>
         ) : (
-          grouped.map(({ msg, showDate, dateLabel }) => (
+          grouped.map(({ msg, showDate, dateLabel, isConsecutive }) => (
             <MessageBubble
               key={msg.id}
               message={msg}
               isSender={msg.sender_id === user?.id}
               showDate={showDate}
               dateLabel={dateLabel}
+              isConsecutive={isConsecutive}
             />
           ))
         )}
