@@ -32,8 +32,20 @@ const MessageBubble = memo(function MessageBubble({
   message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isDelivered,
 }) {
   const [showMenu, setShowMenu] = useState(false)
+  const [openUpward, setOpenUpward] = useState(false)
   const [copied, setCopied] = useState(false)
+  const bubbleRef = useRef(null)
   const menuRef = useRef(null)
+
+  const handleToggleMenu = (e) => {
+    e.stopPropagation()
+    if (!showMenu && bubbleRef.current) {
+      const rect = bubbleRef.current.getBoundingClientRect()
+      // If bubble is in lower half of screen, pop menu UPWARDS so it never gets obscured
+      setOpenUpward(rect.bottom > window.innerHeight - 180)
+    }
+    setShowMenu(!showMenu)
+  }
 
   useEffect(() => {
     if (!showMenu) return
@@ -41,7 +53,7 @@ const MessageBubble = memo(function MessageBubble({
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false)
     }
     document.addEventListener('mousedown', handleClick)
-    document.addEventListener('touchstart', handleClick)
+    document.addEventListener('touchstart', handleClick, { passive: true })
     return () => {
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('touchstart', handleClick)
@@ -71,9 +83,11 @@ const MessageBubble = memo(function MessageBubble({
           justifyContent: isSender ? 'flex-end' : 'flex-start',
           marginTop,
           position: 'relative',
+          zIndex: showMenu ? 100 : 1,
         }}
       >
         <div
+          ref={bubbleRef}
           style={{
             maxWidth: '75%',
             padding: '8px 12px 6px',
@@ -82,30 +96,32 @@ const MessageBubble = memo(function MessageBubble({
             border: isSender ? 'none' : '1px solid var(--c-border)',
             boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
             position: 'relative',
+            zIndex: showMenu ? 100 : 1,
           }}
         >
           {/* Action trigger button */}
           <button
-            onClick={() => setShowMenu(!showMenu)}
+            onClick={handleToggleMenu}
             aria-label="Message options"
             style={{
               position: 'absolute',
               top: 4,
               right: isSender ? 'auto' : -24,
               left: isSender ? -24 : 'auto',
-              width: 20,
-              height: 20,
+              width: 22,
+              height: 22,
               borderRadius: '50%',
               background: 'var(--c-surface)',
               border: '1px solid var(--c-border)',
-              color: 'var(--c-text-tertiary)',
+              color: 'var(--c-text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 10,
+              fontSize: 11,
               cursor: 'pointer',
-              opacity: showMenu ? 1 : 0.4,
+              opacity: showMenu ? 1 : 0.45,
               transition: 'opacity 120ms',
+              zIndex: 101,
             }}
           >
             ⋮
@@ -117,25 +133,28 @@ const MessageBubble = memo(function MessageBubble({
               ref={menuRef}
               style={{
                 position: 'absolute',
-                top: '100%',
+                top: openUpward ? 'auto' : '100%',
+                bottom: openUpward ? '100%' : 'auto',
                 right: isSender ? 0 : 'auto',
                 left: isSender ? 'auto' : 0,
-                marginTop: 4,
+                marginTop: openUpward ? 0 : 6,
+                marginBottom: openUpward ? 6 : 0,
                 background: 'var(--c-surface)',
                 border: '1px solid var(--c-border)',
-                borderRadius: 10,
-                boxShadow: 'var(--shadow-md)',
-                zIndex: 50,
+                borderRadius: 12,
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 200,
                 padding: '4px 0',
-                minWidth: 150,
+                minWidth: 160,
+                overflow: 'hidden',
               }}
             >
               <button
                 onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
                 style={{
-                  width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
+                  width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
                   color: 'var(--c-text)', background: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8,
+                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
                 }}
               >
                 ↩ Reply
@@ -143,9 +162,9 @@ const MessageBubble = memo(function MessageBubble({
               <button
                 onClick={handleCopy}
                 style={{
-                  width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
+                  width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
                   color: 'var(--c-text)', background: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8,
+                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
                 }}
               >
                 {copied ? '✓ Copied' : '📋 Copy text'}
@@ -154,10 +173,10 @@ const MessageBubble = memo(function MessageBubble({
                 <button
                   onClick={() => { onDelete(message.id); setShowMenu(false) }}
                   style={{
-                    width: '100%', padding: '8px 12px', fontSize: 12.5, textAlign: 'left',
+                    width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
                     color: 'var(--c-danger)', background: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    borderTop: '1px solid var(--c-border)', marginTop: 2, paddingTop: 6,
+                    display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
+                    borderTop: '1px solid var(--c-border)', marginTop: 2, paddingTop: 8,
                   }}
                 >
                   🗑 Delete for everyone
