@@ -1,0 +1,238 @@
+import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import { sanitizeInput } from '../utils/sanitize'
+import Avatar from './Avatar'
+import AvatarUpload from './AvatarUpload'
+
+function EditModal({ title, value, onSave, onClose, maxLength, info }) {
+  const [input, setInput] = useState(value || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSave = async () => {
+    const clean = sanitizeInput(input)
+    if (!clean) return
+    setSaving(true)
+    setError('')
+    const result = await onSave(clean)
+    if (result?.error) { setError(result.error); setSaving(false) }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px 20px',
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+      }}
+    >
+      <div
+        className="fade-in-scale"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 340,
+          padding: '24px 20px',
+          background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)',
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text)', margin: '0 0 16px' }}>{title}</h3>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value.slice(0, maxLength || 50))}
+          autoFocus
+          /* 16px prevents iOS zoom */
+          style={{
+            width: '100%', padding: '12px 14px',
+            fontSize: 16,
+            background: 'var(--c-bg)',
+            border: '1.5px solid var(--c-border)',
+            borderRadius: 10, color: 'var(--c-text)', marginBottom: 6,
+          }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--c-accent)' }}
+          onBlur={(e) => { e.target.style.borderColor = 'var(--c-border)' }}
+        />
+        {info && <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: '0 0 8px' }}>{info}</p>}
+        {error && <p style={{ fontSize: 12, color: 'var(--c-danger)', margin: '0 0 8px' }}>{error}</p>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1, padding: '11px 0', fontSize: 14,
+              border: '1px solid var(--c-border)', borderRadius: 10,
+              color: 'var(--c-text-secondary)', background: 'var(--c-surface)', cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !input.trim()}
+            style={{
+              flex: 1, padding: '11px 0', fontSize: 14, fontWeight: 600,
+              background: 'var(--c-accent)', color: '#fff', borderRadius: 10,
+              opacity: saving || !input.trim() ? 0.5 : 1,
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function ProfileMenu() {
+  const { profile, signOut, refreshProfile } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [editField, setEditField] = useState(null)
+  const [showAvatarUpload, setShowAvatarUpload] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [])
+
+  const handleThemeToggle = () => {
+    const html = document.documentElement
+    const isDark = html.classList.contains('dark')
+    html.classList.toggle('dark', !isDark)
+    localStorage.setItem('chupa-theme', isDark ? 'light' : 'dark')
+    setOpen(false)
+  }
+
+  const handleSaveName = async (v) => {
+    const { data } = await supabase.rpc('update_name', { p_user_id: profile.id, p_new_name: v })
+    if (data && !data.success) return { error: data.error }
+    await refreshProfile(); setEditField(null); setOpen(false); return {}
+  }
+
+  const handleSaveUsername = async (v) => {
+    const { data } = await supabase.rpc('update_username', { p_user_id: profile.id, p_new_username: v })
+    if (data && !data.success) return { error: data.error }
+    await refreshProfile(); setEditField(null); setOpen(false); return {}
+  }
+
+  const menuItemStyle = {
+    width: '100%', padding: '12px 14px',
+    fontSize: 14, textAlign: 'left',
+    color: 'var(--c-text)', background: 'none',
+    cursor: 'pointer', transition: 'background 100ms',
+    border: 'none', display: 'flex', alignItems: 'center', gap: 10,
+    minHeight: 46,
+    WebkitTapHighlightColor: 'transparent',
+  }
+
+  return (
+    <div ref={menuRef} style={{ position: 'relative' }}>
+      <button
+        id="profile-menu-trigger"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: 36, height: 36, borderRadius: '50%',
+          border: `2px solid ${open ? 'var(--c-accent)' : 'var(--c-border)'}`,
+          background: 'var(--c-bg)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden', padding: 0, cursor: 'pointer',
+          transition: 'border-color 150ms',
+          flexShrink: 0,
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.borderColor = 'var(--c-accent)' }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = 'var(--c-border)' }}
+      >
+        <Avatar name={profile?.name} url={profile?.avatar_url} size={32} />
+      </button>
+
+      {open && (
+        <div
+          className="fade-in-scale"
+          style={{
+            position: 'absolute', right: 0, top: '100%', marginTop: 8,
+            width: 230,
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 14,
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 100, overflow: 'hidden',
+          }}
+        >
+          {/* Profile header */}
+          <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid var(--c-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Avatar name={profile?.name} url={profile?.avatar_url} size={40} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile?.name}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', margin: 0 }}>
+                @{profile?.username}
+              </p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ padding: '4px 0' }}>
+            <button style={menuItemStyle} onClick={() => { setShowAvatarUpload(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>📷</span> <span>Change photo</span>
+            </button>
+            <button id="edit-name-btn" style={menuItemStyle} onClick={() => { setEditField('name'); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>✏️</span> <span>Edit name</span>
+            </button>
+            <button id="edit-username-btn" style={menuItemStyle} onClick={() => { setEditField('username'); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}>@</span> <span>Edit username</span>
+            </button>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--c-border)', padding: '4px 0' }}>
+            <button id="theme-toggle" style={menuItemStyle} onClick={handleThemeToggle}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>{document.documentElement.classList.contains('dark') ? '☀️' : '🌙'}</span>
+              <span>{document.documentElement.classList.contains('dark') ? 'Light mode' : 'Dark mode'}</span>
+            </button>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--c-border)', padding: '4px 0' }}>
+            <button id="sign-out-btn"
+              style={{ ...menuItemStyle, color: 'var(--c-danger)' }}
+              onClick={() => { signOut(); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-danger-light)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>🚪</span> <span>Sign out</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAvatarUpload && <AvatarUpload onClose={() => setShowAvatarUpload(false)} />}
+      {editField === 'name' && (
+        <EditModal title="Edit name" value={profile?.name} maxLength={50} info="Can be changed once every 12 hours" onSave={handleSaveName} onClose={() => setEditField(null)} />
+      )}
+      {editField === 'username' && (
+        <EditModal title="Edit username" value={profile?.username} maxLength={20} info="Once every 7 days. Letters, numbers, underscores." onSave={handleSaveUsername} onClose={() => setEditField(null)} />
+      )}
+    </div>
+  )
+}
