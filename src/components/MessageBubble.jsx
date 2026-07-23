@@ -213,6 +213,43 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
+        {/* Sender Quick Actions (placed to the left of sender bubble) */}
+        {isSender && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0 }}>
+            <button
+              onClick={() => onReply?.({ message, senderName })}
+              title="Reply to message"
+              style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                color: 'var(--c-accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              ↩
+            </button>
+            <button
+              onClick={handleToggleMenu}
+              title="Options"
+              style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                color: 'var(--c-text-secondary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              ⋮
+            </button>
+          </div>
+        )}
+
+        {/* Bubble Container */}
         <div
           ref={bubbleRef}
           onDoubleClick={() => onReply?.({ message, senderName })}
@@ -224,7 +261,6 @@ const MessageBubble = memo(function MessageBubble({
             border: isSender ? 'none' : '1px solid var(--c-border)',
             boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
             position: 'relative',
-            overflow: 'hidden',
           }}
         >
           {/* Group Sender Header */}
@@ -273,25 +309,6 @@ const MessageBubble = memo(function MessageBubble({
               </div>
             </div>
           )}
-
-          {/* Action trigger */}
-          <button
-            onClick={handleToggleMenu}
-            aria-label="Message options"
-            style={{
-              position: 'absolute', top: 4,
-              right: isSender ? 'auto' : -26,
-              left: isSender ? -26 : 'auto',
-              width: 22, height: 22, borderRadius: '50%',
-              background: 'var(--c-surface)',
-              border: '1px solid var(--c-border)',
-              color: 'var(--c-text-secondary)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, cursor: 'pointer',
-              opacity: showMenu ? 1 : 0.45,
-              transition: 'opacity 120ms', zIndex: 101,
-            }}
-          >⋮</button>
 
           {/* Context menu */}
           {showMenu && (
@@ -387,6 +404,42 @@ const MessageBubble = memo(function MessageBubble({
             )}
           </div>
         </div>
+
+        {/* Recipient Quick Actions (placed to the right of recipient bubble) */}
+        {!isSender && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0 }}>
+            <button
+              onClick={() => onReply?.({ message, senderName })}
+              title="Reply to message"
+              style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                color: 'var(--c-accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              ↩
+            </button>
+            <button
+              onClick={handleToggleMenu}
+              title="Options"
+              style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                color: 'var(--c-text-secondary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              ⋮
+            </button>
+          </div>
+        )}
       </div>
     </>
   )
