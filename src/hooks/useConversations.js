@@ -20,22 +20,75 @@ export function useConversations() {
     }
 
     try {
-      const { data, error: fetchError } = await supabase.rpc(
-        'get_conversations_for_user',
-        { p_uid: user.id }
-      )
+      // Bypass the RPC because the user might have an outdated database function
+      const { data: convs, error: convError } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
 
-      if (fetchError) {
-        if (isMounted.current) setError(fetchError.message)
-      } else {
-        const result = data || []
-        globalConversationsCache = result
+      if (convError) {
+        console.error('Fetch conversations error:', convError)
+        if (isMounted.current) setError(convError.message)
+        return
+      }
+
+      if (!convs || convs.length === 0) {
+        globalConversationsCache = []
         if (isMounted.current) {
-          setConversations(result)
+          setConversations([])
           setError(null)
         }
+        return
+      }
+
+      const otherIds = convs.map(c => c.participant_1 === user.id ? c.participant_2 : c.participant_1)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', otherIds)
+
+      const enriched = await Promise.all(
+        convs.map(async (c) => {
+          const otherId = c.participant_1 === user.id ? c.participant_2 : c.participant_1
+          const profile = profiles?.find((p) => p.id === otherId)
+          
+          // Select * to safely avoid crashes if image_url column doesn't exist
+          const { data: msg } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', c.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          return {
+            conversation_id: c.id,
+            other_user_id: otherId,
+            other_user_name: profile?.name || 'Unknown',
+            other_user_username: profile?.username || '',
+            other_user_avatar: profile?.avatar_url || null,
+            last_message: msg?.content || null,
+            last_message_image: msg?.image_url || null,
+            last_message_at: msg?.created_at || null,
+            conversation_created_at: c.created_at,
+          }
+        })
+      )
+
+      // Sort by newest message first
+      enriched.sort((a, b) => {
+        const timeA = new Date(a.last_message_at || a.conversation_created_at).getTime()
+        const timeB = new Date(b.last_message_at || b.conversation_created_at).getTime()
+        return timeB - timeA
+      })
+
+      globalConversationsCache = enriched
+      if (isMounted.current) {
+        setConversations(enriched)
+        setError(null)
       }
     } catch (err) {
+      console.error('Unexpected error in fetchConversations:', err)
       if (isMounted.current) setError(err.message)
     } finally {
       if (isMounted.current) setLoading(false)

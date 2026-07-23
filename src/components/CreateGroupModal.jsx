@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import Avatar from './Avatar'
+import { useSearch } from '../hooks/useSearch'
 
 export default function CreateGroupModal({ conversations, onCreate, onClose }) {
   const [name, setName] = useState('')
@@ -11,13 +12,38 @@ export default function CreateGroupModal({ conversations, onCreate, onClose }) {
   const [errorMsg, setErrorMsg] = useState('')
   const fileInputRef = useRef(null)
 
-  const toggleUser = (conv) => {
-    if (selectedUsers.some(u => u.other_user_id === conv.other_user_id)) {
-      setSelectedUsers(prev => prev.filter(u => u.other_user_id !== conv.other_user_id))
+  const { query, results, searching, search } = useSearch()
+
+  const toggleUser = (userObj) => {
+    if (selectedUsers.some(u => u.other_user_id === userObj.other_user_id)) {
+      setSelectedUsers(prev => prev.filter(u => u.other_user_id !== userObj.other_user_id))
     } else {
-      setSelectedUsers(prev => [...prev, conv])
+      setSelectedUsers(prev => [...prev, userObj])
     }
   }
+
+  const availableUsers = useMemo(() => {
+    const list = []
+    
+    // Add all existing conversations
+    conversations.forEach(c => {
+      list.push(c)
+    })
+
+    // Add search results not already in list
+    results.forEach(r => {
+      if (!list.some(c => c.other_user_id === r.id)) {
+        list.push({
+          other_user_id: r.id,
+          other_user_name: r.name,
+          other_user_username: r.username,
+          other_user_avatar: r.avatar_url,
+        })
+      }
+    })
+
+    return list
+  }, [conversations, results])
 
   const handleAvatarPick = (e) => {
     const f = e.target.files?.[0]
@@ -148,20 +174,33 @@ export default function CreateGroupModal({ conversations, onCreate, onClose }) {
           />
 
           {/* Select Members */}
-          <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-secondary)', marginBottom: 8 }}>
-            Add Members ({selectedUsers.length})
+          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-secondary)', marginBottom: 8 }}>
+            <span>Add Members ({selectedUsers.length})</span>
+            {searching && <span style={{ fontSize: 10, color: 'var(--c-accent)' }}>Searching...</span>}
           </label>
+          
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => search(e.target.value)}
+            placeholder="Search by username or email..."
+            style={{
+              width: '100%', padding: '8px 12px', fontSize: 13,
+              background: 'var(--c-bg)', border: '1px solid var(--c-border)',
+              borderRadius: 8, color: 'var(--c-text)', outline: 'none', marginBottom: 12,
+            }}
+          />
 
           <div style={{
             flex: 1, overflowY: 'auto', border: '1px solid var(--c-border)',
             borderRadius: 12, background: 'var(--c-bg)', padding: '6px 0', minHeight: 140, maxHeight: 200, marginBottom: 18,
           }}>
-            {conversations.length === 0 ? (
+            {availableUsers.length === 0 ? (
               <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 16, margin: 0 }}>
-                No active chats yet. Search users to start chatting first!
+                {query ? 'No users found.' : 'No active chats yet. Search users to add them!'}
               </p>
             ) : (
-              conversations.map((conv) => {
+              availableUsers.map((conv) => {
                 const selected = selectedUsers.some(u => u.other_user_id === conv.other_user_id)
                 return (
                   <div
