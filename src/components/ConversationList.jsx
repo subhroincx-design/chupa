@@ -23,34 +23,28 @@ function formatRelativeTime(dateStr) {
 }
 
 function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinToggle, onClick, onOpenProfile }) {
-  const [showOptions, setShowOptions] = useState(false)
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    if (!showOptions) return
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowOptions(false)
-    }
-    document.addEventListener('mousedown', handler)
-    document.addEventListener('touchstart', handler, { passive: true })
-    return () => {
-      document.removeEventListener('mousedown', handler)
-      document.removeEventListener('touchstart', handler)
-    }
-  }, [showOptions])
-
   return (
-    <div style={{ position: 'relative', background: isActive ? 'var(--c-surface-hover)' : 'transparent', transition: 'background 100ms' }}>
+    <div
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        background: isActive ? 'var(--c-surface-hover)' : 'transparent',
+        transition: 'background 120ms',
+        borderLeft: `3px solid ${isActive ? 'var(--c-accent)' : 'transparent'}`,
+      }}
+      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--c-surface-hover)' }}
+      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+    >
       <button
         id={`conv-item-${conversation.conversation_id}`}
         onClick={() => onClick(conversation)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-          padding: '11px 14px', textAlign: 'left', cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent', minHeight: 60, minWidth: 0,
+          flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 14px', textAlign: 'left', cursor: 'pointer',
+          background: 'none', border: 'none',
+          WebkitTapHighlightColor: 'transparent', minHeight: 64, minWidth: 0,
         }}
-        onMouseEnter={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'var(--c-surface-hover)' }}
-        onMouseLeave={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'transparent' }}
       >
         <div
           onClick={(e) => {
@@ -66,32 +60,34 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
           }}
           style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
         >
-          <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
+          <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={44} />
           {isOnline && (
             <span style={{
-              position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%',
+              position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%',
               background: 'var(--c-accent)', border: '2px solid var(--c-surface)',
             }} />
           )}
         </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-              {isPinned && <span style={{ fontSize: 11 }}>📌</span>}
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0, lineHeight: 1.3 }}>
+              {isPinned && <span style={{ fontSize: 11, color: 'var(--c-accent)' }}>📌</span>}
+              <p style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0, lineHeight: 1.2 }}>
                 {conversation.other_user_name}
               </p>
               {(conversation.other_user_username?.toLowerCase() === 'subhro' || conversation.other_user_name?.toLowerCase() === 'subhro') && (
-                <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 6px', borderRadius: 99, flexShrink: 0 }}>
                   👑 OWNER
                 </span>
               )}
             </div>
-            <span style={{ fontSize: 11, color: 'var(--c-text-tertiary)', flexShrink: 0, fontWeight: 500, lineHeight: 1 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', flexShrink: 0, fontWeight: 500 }}>
               {formatRelativeTime(conversation.last_message_at || conversation.conversation_created_at)}
             </span>
           </div>
-          <p style={{ fontSize: 12.5, color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>
+
+          <p style={{ fontSize: 13, color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
             {conversation.last_message
               ? conversation.last_message
               : conversation.last_message_image || conversation.last_message_at
@@ -102,16 +98,22 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
         </div>
       </button>
 
+      {/* Pin Action Button */}
       <button
         onClick={(e) => { e.stopPropagation(); onPinToggle(conversation.conversation_id) }}
         title={isPinned ? 'Unpin chat' : 'Pin chat'}
         style={{
-          padding: '8px 10px', fontSize: 12,
+          padding: '10px 12px', fontSize: 13,
+          background: 'none', border: 'none',
           color: isPinned ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
-          cursor: 'pointer', opacity: isPinned ? 1 : 0.4, transition: 'opacity 120ms',
+          cursor: 'pointer', opacity: isPinned ? 1 : 0.35,
+          transition: 'opacity 120ms, transform 120ms',
+          flexShrink: 0,
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+        onMouseLeave={(e) => { if (!isPinned) e.currentTarget.style.opacity = '0.35' }}
       >
-        {isPinned ? '📌' : '📍'}
+        📌
       </button>
     </div>
   )
