@@ -156,6 +156,18 @@ export function useGroups() {
         .eq('id', groupId)
         .maybeSingle()
 
+      if (groupData) {
+        const joinedObj = { ...groupData, myRole: existingMember?.role || 'member' }
+        setGroups(prev => {
+          const exists = prev.some(g => g.id === groupData.id)
+          const updated = exists ? prev : [joinedObj, ...prev]
+          try {
+            localStorage.setItem('chupa-groups-cache', JSON.stringify(updated))
+          } catch {}
+          return updated
+        })
+      }
+
       await fetchGroups()
       return groupData || null
     } catch (err) {

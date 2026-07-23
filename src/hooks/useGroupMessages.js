@@ -4,21 +4,45 @@ import { useAuth } from '../context/AuthContext'
 
 export function useGroupMessages(groupId) {
   const { user, profile } = useAuth()
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [messages, setMessages] = useState(() => {
+    if (!groupId) return []
+    try {
+      const cached = localStorage.getItem(`chupa-group-msgs-${groupId}`)
+      return cached ? JSON.parse(cached) : []
+    } catch {
+      return []
+    }
+  })
+  const [loading, setLoading] = useState(() => {
+    if (!groupId) return false
+    try {
+      const cached = localStorage.getItem(`chupa-group-msgs-${groupId}`)
+      return !cached || JSON.parse(cached).length === 0
+    } catch {
+      return true
+    }
+  })
   const [members, setMembers] = useState([])
   const sendTs = useRef([])
 
+  const updateMessagesCache = (msgList) => {
+    setMessages(msgList)
+    if (groupId) {
+      try {
+        localStorage.setItem(`chupa-group-msgs-${groupId}`, JSON.stringify(msgList))
+      } catch { /* ignore storage quota */ }
+    }
+  }
+
   const fetchMessages = useCallback(async () => {
     if (!groupId) return
-    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('group_messages')
         .select('*')
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
-      if (!error) setMessages(data || [])
+      if (!error && data) updateMessagesCache(data)
     } finally {
       setLoading(false)
     }
@@ -78,8 +102,6 @@ export function useGroupMessages(groupId) {
   }, [groupId])
 
   useEffect(() => {
-    setMessages([])
-    setLoading(true)
     fetchMessages()
     fetchMembers()
   }, [fetchMessages, fetchMembers])
