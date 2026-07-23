@@ -7,7 +7,7 @@ import Avatar from './Avatar'
 import AvatarUpload from './AvatarUpload'
 import InstallGuideModal from './InstallGuideModal'
 import SupportTicketsModal from './SupportTicketsModal'
-import { saveUserBio } from '../utils/bioManager'
+import { saveUserBio, fetchUserBio } from '../utils/bioManager'
 
 function AdminBanPanelModal({ onClose }) {
   const { banUser, unbanUser } = useAuth()
@@ -326,11 +326,22 @@ function SettingsModal({ user, profile, onClose }) {
 function FullEditProfileModal({ profile, user, onClose, onRefresh }) {
   const [name, setName] = useState(profile?.name || '')
   const [username, setUsername] = useState(profile?.username || '')
-  const [bio, setBio] = useState(profile?.bio || '')
+  const [bio, setBio] = useState(() => profile?.bio || localStorage.getItem(`chupa-bio-${profile?.id || user?.id}`) || user?.user_metadata?.bio || '')
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadBio = async () => {
+      const uId = profile?.id || user?.id
+      if (uId) {
+        const b = await fetchUserBio(uId)
+        if (b) setBio(b)
+      }
+    }
+    loadBio()
+  }, [profile?.id, user?.id])
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0]
