@@ -4,12 +4,25 @@ import { useAuth } from '../context/AuthContext'
 
 export function useGroups() {
   const { user } = useAuth()
-  const [groups, setGroups] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [groups, setGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chupa-groups-cache')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+  const [loading, setLoading] = useState(false)
+
+  const updateGroupsCache = (list) => {
+    setGroups(list)
+    try {
+      localStorage.setItem('chupa-groups-cache', JSON.stringify(list))
+    } catch { /* ignore storage quota */ }
+  }
 
   const fetchGroups = useCallback(async () => {
     if (!user) return
-    setLoading(true)
     try {
       // 1. Try joined PostgREST query first
       const { data, error } = await supabase
@@ -21,7 +34,7 @@ export function useGroups() {
         const groupList = data
           .filter(row => row.groups)
           .map(row => ({ ...row.groups, myRole: row.role }))
-        setGroups(groupList)
+        updateGroupsCache(groupList)
         return
       }
 
@@ -43,13 +56,12 @@ export function useGroups() {
           ...g,
           myRole: roleMap.get(g.id) || 'member',
         }))
-        setGroups(groupList)
+        updateGroupsCache(groupList)
       } else {
-        setGroups([])
+        updateGroupsCache([])
       }
     } catch (err) {
       console.error('fetchGroups exception:', err)
-      setGroups([])
     } finally {
       setLoading(false)
     }

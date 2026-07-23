@@ -17,7 +17,13 @@ export default function Dashboard() {
   const { groups, createGroup, leaveGroup, joinGroup, addMembersToGroup, removeMemberFromGroup, deleteGroup } = useGroups()
   const { query, results, groupResults, searching, search, clearSearch } = useSearch()
 
-  const [activeTab, setActiveTab] = useState('chats') // 'chats' | 'groups'
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return localStorage.getItem('chupa-active-tab') || 'chats'
+    } catch {
+      return 'chats'
+    }
+  })
   const [activeConversation, setActiveConversation] = useState(null)
   const [activeGroup, setActiveGroup] = useState(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -25,6 +31,33 @@ export default function Dashboard() {
 
   const [mobileView, setMobileView] = useState('list') // 'list' | 'chat' | 'group'
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab)
+    try {
+      localStorage.setItem('chupa-active-tab', tab)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Auto-restore open conversation or group on page refresh
+  useEffect(() => {
+    const savedConvId = localStorage.getItem('chupa-active-conv-id')
+    const savedGroupId = localStorage.getItem('chupa-active-group-id')
+
+    if (savedConvId && conversations.length > 0 && !activeConversation && !activeGroup) {
+      const found = conversations.find((c) => c.conversation_id === savedConvId)
+      if (found) {
+        setActiveConversation(found)
+        if (isMobile) setMobileView('chat')
+      }
+    } else if (savedGroupId && groups.length > 0 && !activeGroup && !activeConversation) {
+      const found = groups.find((g) => g.id === savedGroupId)
+      if (found) {
+        setActiveGroup(found)
+        if (isMobile) setMobileView('group')
+      }
+    }
+  }, [conversations, groups, isMobile, activeConversation, activeGroup])
 
   useEffect(() => {
     requestNotificationPermission().catch(() => {})
@@ -45,6 +78,8 @@ export default function Dashboard() {
         setMobileView('list')
         setActiveConversation(null)
         setActiveGroup(null)
+        localStorage.removeItem('chupa-active-conv-id')
+        localStorage.removeItem('chupa-active-group-id')
       }
     }
 
@@ -57,6 +92,10 @@ export default function Dashboard() {
     setActiveGroup(null)
     setMobileView('chat')
     clearSearch()
+    try {
+      localStorage.setItem('chupa-active-conv-id', conv.conversation_id)
+      localStorage.removeItem('chupa-active-group-id')
+    } catch {}
     if (window.innerWidth < 768) {
       window.history.pushState({ chat: true }, '')
     }
@@ -67,12 +106,18 @@ export default function Dashboard() {
     setActiveConversation(null)
     setMobileView('group')
     clearSearch()
+    try {
+      localStorage.setItem('chupa-active-group-id', group.id)
+      localStorage.removeItem('chupa-active-conv-id')
+    } catch {}
     if (window.innerWidth < 768) {
       window.history.pushState({ chat: true }, '')
     }
   }, [clearSearch])
 
   const handleBack = useCallback(() => {
+    localStorage.removeItem('chupa-active-conv-id')
+    localStorage.removeItem('chupa-active-group-id')
     if (window.history.state?.chat) {
       window.history.back()
     } else {
@@ -233,7 +278,7 @@ export default function Dashboard() {
     onSelectGroup: handleSelectGroup,
     onCreateGroupClick: () => setShowCreateGroup(true),
     activeTab,
-    onTabChange: (t) => { setActiveTab(t); clearSearch() },
+    onTabChange: (t) => { handleTabChange(t); clearSearch() },
     onDeleteChat: handleDeleteChat,
     searchQuery: query,
     onSearch: (q) => search(q, activeTab),

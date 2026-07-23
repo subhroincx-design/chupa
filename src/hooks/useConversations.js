@@ -3,7 +3,14 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { sendLocalNotification } from '../utils/notifications'
 
-let globalConversationsCache = []
+let globalConversationsCache = (() => {
+  try {
+    const saved = localStorage.getItem('chupa-convs-cache')
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+})()
 
 export function useConversations() {
   const { user } = useAuth()
@@ -138,6 +145,10 @@ export function useConversations() {
       })
 
       globalConversationsCache = enriched
+      try {
+        localStorage.setItem('chupa-convs-cache', JSON.stringify(enriched))
+      } catch { /* ignore storage quota */ }
+
       if (isMounted.current) {
         setConversations(enriched)
         setError(null)
