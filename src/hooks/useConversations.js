@@ -44,9 +44,15 @@ export function useConversations() {
 
   useEffect(() => {
     isMounted.current = true
+    if (!user) {
+      globalConversationsCache = []
+      setConversations([])
+      setLoading(false)
+      return
+    }
     fetchConversations(globalConversationsCache.length === 0)
     return () => { isMounted.current = false }
-  }, [fetchConversations])
+  }, [user, fetchConversations])
 
   // Subscribe to realtime message insertions to update conversation list & trigger native notifications
   useEffect(() => {

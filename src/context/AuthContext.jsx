@@ -87,6 +87,7 @@ export function AuthProvider({ children }) {
   )
 
   const fetchProfile = async (userId) => {
+    setProfileFetched(false)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -198,13 +199,13 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = async () => {
-    localStorage.removeItem('chupa-profile-cache')
-    await supabase.auth.signOut()
     setProfile(null)
     setUser(null)
     setSession(null)
     setAuthError(null)
     setProfileFetched(false)
+    try { localStorage.removeItem('chupa-profile-cache') } catch {}
+    await supabase.auth.signOut()
   }
 
   return (

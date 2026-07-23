@@ -161,68 +161,37 @@ export default function Login() {
       position: 'relative',
     }}>
 
-      {/* Top action bar: Install App + Theme Toggle */}
-      <div style={{
-        position: 'absolute', top: 'calc(16px + var(--safe-top))', right: 16,
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <button
-          onClick={() => setShowInstallModal(true)}
-          style={{
-            padding: '8px 14px', fontSize: 12.5, fontWeight: 700,
-            color: '#fff', background: 'var(--c-accent)',
-            border: 'none', borderRadius: 99,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-            boxShadow: '0 2px 8px rgba(5,150,105,0.3)',
-          }}
-        >
-          <span>📲</span> <span>Install App</span>
-        </button>
-
-        <button
-          id="login-theme-toggle"
-          onClick={handleThemeToggle}
-          title="Toggle theme"
-          style={{
-            padding: '8px 14px', fontSize: 13, fontWeight: 500,
-            color: 'var(--c-text-secondary)', background: 'var(--c-surface)',
-            border: '1px solid var(--c-border)', borderRadius: 99,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          {isDark ? '☀️ Light' : '🌙 Dark'}
-        </button>
-      </div>
-
       <div style={{ width: '100%', maxWidth: 390 }}>
 
-        {/* Prominent Install Banner for visitors/new users */}
+        {/* Top Header: Install App + Theme Toggle */}
         <div style={{
-          marginBottom: 20,
-          padding: '12px 14px',
-          background: 'linear-gradient(135deg, rgba(5,150,105,0.1), rgba(16,185,129,0.15))',
-          border: '1px solid rgba(5,150,105,0.25)',
-          borderRadius: 14,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 20, width: '100%',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>📱</span>
-            <div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text)', display: 'block', lineHeight: 1.2 }}>Install Chupa App</span>
-              <span style={{ fontSize: 11, color: 'var(--c-text-secondary)' }}>Add to home screen</span>
-            </div>
-          </div>
           <button
             onClick={() => setShowInstallModal(true)}
             style={{
-              padding: '6px 12px', fontSize: 12, fontWeight: 700,
-              background: 'var(--c-accent)', color: '#fff',
-              border: 'none', borderRadius: 8, cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(5,150,105,0.25)',
+              padding: '7px 13px', fontSize: 12.5, fontWeight: 700,
+              color: 'var(--c-accent)', background: 'var(--c-accent-light)',
+              border: '1px solid rgba(5,150,105,0.25)', borderRadius: 99,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            Install →
+            <span>📲</span> <span>Install App</span>
+          </button>
+
+          <button
+            id="login-theme-toggle"
+            onClick={handleThemeToggle}
+            title="Toggle theme"
+            style={{
+              padding: '7px 13px', fontSize: 12.5, fontWeight: 600,
+              color: 'var(--c-text-secondary)', background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)', borderRadius: 99,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            {isDark ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
 
