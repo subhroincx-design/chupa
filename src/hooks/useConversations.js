@@ -76,7 +76,8 @@ export function useConversations() {
 
               const updatedConv = {
                 ...matchedConv,
-                last_message: newMsg.content,
+                last_message: newMsg.content || null,
+                last_message_image: newMsg.image_url || null,
                 last_message_at: newMsg.created_at,
               }
               const rest = prev.filter((_, i) => i !== idx)

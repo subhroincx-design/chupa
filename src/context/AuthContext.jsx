@@ -29,6 +29,8 @@ export function AuthProvider({ children }) {
     }
   })
   const [loading, setLoading] = useState(true)
+  // sessionChecked: true only after initial getSession() resolves — prevents flash-to-register
+  const [sessionChecked, setSessionChecked] = useState(false)
   const [profileFetched, setProfileFetched] = useState(() => {
     try {
       return !!localStorage.getItem('chupa-profile-cache')
@@ -152,6 +154,7 @@ export function AuthProvider({ children }) {
       }
       clearTimeout(safetyTimer)
       isInitialCheckDone.current = true
+      setSessionChecked(true)
       setLoading(false)
     })
 
@@ -211,6 +214,7 @@ export function AuthProvider({ children }) {
         session,
         profile,
         loading,
+        sessionChecked,
         profileFetched,
         authError,
         onlineUserIds,

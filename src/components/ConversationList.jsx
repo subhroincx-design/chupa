@@ -67,7 +67,9 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
           <p style={{ fontSize: 12.5, color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>
             {conversation.last_message
               ? conversation.last_message
-              : <span style={{ color: 'var(--c-text-tertiary)', fontStyle: 'italic' }}>No messages yet</span>
+              : conversation.last_message_image || conversation.last_message_at
+                ? <span style={{ color: 'var(--c-text-tertiary)', fontStyle: 'italic' }}>📷 Photo</span>
+                : <span style={{ color: 'var(--c-text-tertiary)', fontStyle: 'italic' }}>No messages yet</span>
             }
           </p>
         </div>

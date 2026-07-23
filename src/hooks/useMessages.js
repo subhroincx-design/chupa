@@ -81,18 +81,22 @@ export function useMessages(conversationId) {
           .from('chat-media')
           .upload(path, imageFile, { contentType: imageFile.type })
         if (!upErr) {
-          const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(path)
-          imageUrl = publicUrl
+          const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path)
+          imageUrl = urlData?.publicUrl || null
         } else {
-          setError('Image upload failed')
+          console.error('Image upload error:', upErr)
+          setError(`Image upload failed: ${upErr.message || 'Check storage bucket exists'}`)
           return false
         }
-      } catch {
-        setError('Image upload failed')
+      } catch (upEx) {
+        console.error('Image upload exception:', upEx)
+        setError('Image upload failed. Please try again.')
         return false
       }
     }
 
+    // content must not be null — if image-only, use empty string
+    // (DB constraint will be relaxed via SQL patch; this is a safe fallback)
     const { error: sendError } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: user.id,
@@ -101,6 +105,7 @@ export function useMessages(conversationId) {
     })
 
     if (sendError) {
+      console.error('Message insert error:', sendError)
       setError(sendError.message)
       return false
     }

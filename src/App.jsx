@@ -50,7 +50,7 @@ function LoadingScreen() {
 const PUBLIC_ROUTES = ['/login', '/register', '/reset-password', '/verify-otp']
 
 export default function App() {
-  const { user, profile, loading, profileFetched } = useAuth()
+  const { user, profile, loading, sessionChecked, profileFetched } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -66,8 +66,9 @@ export default function App() {
   }, [])
 
   // Smart Auto-redirect based on auth state
+  // IMPORTANT: only run after initial session check resolves (prevents flash-to-register)
   useEffect(() => {
-    if (loading) return
+    if (loading || !sessionChecked) return
 
     const path = location.pathname
 
@@ -88,7 +89,7 @@ export default function App() {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, profileFetched, navigate, location.pathname])
+  }, [user, profile, loading, sessionChecked, profileFetched, navigate, location.pathname])
 
   if (loading || (user && !profile && !profileFetched)) return <LoadingScreen />
 
