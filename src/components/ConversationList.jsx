@@ -138,6 +138,7 @@ export default function ConversationList({
   const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
   const [showInstallModal, setShowInstallModal] = useState(false)
+  const [hideBanner, setHideBanner] = useState(false)
 
   const [pinnedIds, setPinnedIds] = useState(() => {
     try {
@@ -193,28 +194,64 @@ export default function ConversationList({
             Chupa
           </h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            onClick={() => setShowInstallModal(true)}
-            title="Install Chupa App"
-            style={{
-              padding: '5px 10px', fontSize: 12, fontWeight: 700,
-              color: 'var(--c-accent)', background: 'var(--c-accent-light)',
-              border: 'none', borderRadius: 99, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            <span>📲</span> <span>Install App</span>
-          </button>
-          <ProfileMenu />
-        </div>
+        <ProfileMenu />
       </div>
+
+      {/* Prominent Install App Banner Card */}
+      {!hideBanner && (
+        <div style={{
+          margin: '8px 12px 2px',
+          padding: '10px 12px',
+          background: 'linear-gradient(135deg, rgba(5,150,105,0.08), rgba(16,185,129,0.12))',
+          border: '1px solid rgba(5,150,105,0.25)',
+          borderRadius: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: 'var(--c-accent)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, flexShrink: 0,
+            }}>📲</div>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text)', display: 'block', lineHeight: 1.2 }}>Install Chupa App</span>
+              <span style={{ fontSize: 11, color: 'var(--c-text-secondary)' }}>Add to mobile home screen</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setShowInstallModal(true)}
+              style={{
+                padding: '6px 12px', fontSize: 12, fontWeight: 700,
+                background: 'var(--c-accent)', color: '#fff',
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(5,150,105,0.25)',
+                flexShrink: 0,
+              }}
+            >
+              Install →
+            </button>
+            <button
+              onClick={() => setHideBanner(true)}
+              style={{
+                background: 'none', border: 'none', color: 'var(--c-text-tertiary)',
+                fontSize: 12, cursor: 'pointer', padding: '2px 4px',
+              }}
+            >✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs: Chats / Groups */}
       <div style={{
         display: 'flex', padding: '6px 12px', gap: 6,
         borderBottom: '1px solid var(--c-border)', flexShrink: 0,
-        background: 'var(--c-bg)',
+        background: 'var(--c-bg)', marginTop: 4,
       }}>
         <button
           onClick={() => onTabChange?.('chats')}
