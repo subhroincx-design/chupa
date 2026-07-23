@@ -36,6 +36,15 @@ export default function UserProfileModal({ user, onClose, onStartChat }) {
     loadFullProfile()
   }, [user?.id])
 
+  useEffect(() => {
+    if (!lightbox) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setLightbox(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightbox])
+
   if (!user) return null
 
   const isOnline = isUserOnline ? isUserOnline(user.id || profileData?.id) : false
@@ -78,7 +87,8 @@ export default function UserProfileModal({ user, onClose, onStartChat }) {
         {/* Avatar with click to zoom */}
         <div
           onClick={() => (profileData?.avatar_url || user?.avatar_url) && setLightbox(true)}
-          style={{ position: 'relative', cursor: (profileData?.avatar_url || user?.avatar_url) ? 'zoom-in' : 'default', marginBottom: 14 }}
+          style={{ position: 'relative', cursor: (profileData?.avatar_url || user?.avatar_url) ? 'pointer' : 'default', marginBottom: 14 }}
+          title={(profileData?.avatar_url || user?.avatar_url) ? 'Click to view full photo' : ''}
         >
           <Avatar
             name={profileData?.name || user?.name || user?.username}
@@ -156,19 +166,46 @@ export default function UserProfileModal({ user, onClose, onStartChat }) {
           </button>
         </div>
 
-        {/* Image Lightbox */}
+        {/* Image Lightbox with visible Close button for Android/Mobile & PC */}
         {lightbox && (profileData?.avatar_url || user?.avatar_url) && (
           <div
             onClick={() => setLightbox(false)}
             style={{
               position: 'fixed', inset: 0, zIndex: 9999,
-              background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, cursor: 'zoom-out',
+              background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: 16, cursor: 'zoom-out',
             }}
           >
+            {/* Visible Floating Close Button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightbox(false) }}
+              style={{
+                position: 'absolute', top: 20, right: 20,
+                padding: '10px 18px', borderRadius: 99,
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: '#ffffff', fontSize: 14, fontWeight: 700,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                zIndex: 10000,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontSize: 16 }}>✕</span> <span>Close Photo</span>
+            </button>
+
             <img
               src={profileData?.avatar_url || user?.avatar_url}
-              alt="Avatar Large"
-              style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 16, objectFit: 'contain' }}
+              alt="Avatar Full View"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '92vw', maxHeight: '82vh',
+                borderRadius: 20, objectFit: 'contain',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                cursor: 'default',
+              }}
             />
           </div>
         )}
