@@ -113,16 +113,34 @@ function AdminBanPanelModal({ onClose }) {
                         Owner
                       </span>
                     ) : (
-                      <button
-                        onClick={() => handleBanToggle(u.id, u.username)}
-                        style={{
-                          padding: '6px 14px', fontSize: 12, fontWeight: 700,
-                          background: isBanned ? 'var(--c-accent)' : 'var(--c-danger)',
-                          color: '#fff', border: 'none', borderRadius: 99, cursor: 'pointer',
-                        }}
-                      >
-                        {isBanned ? 'Unban' : '🚫 Ban'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={async () => {
+                            const newName = window.prompt(`Change name for @${u.username}:`, u.name)
+                            if (newName && newName.trim()) {
+                              await supabase.from('profiles').update({ name: newName.trim() }).eq('id', u.id)
+                              alert(`Updated name to "${newName.trim()}"`)
+                            }
+                          }}
+                          style={{
+                            padding: '6px 10px', fontSize: 11.5, fontWeight: 600,
+                            background: 'var(--c-surface)', color: 'var(--c-text)',
+                            border: '1px solid var(--c-border)', borderRadius: 99, cursor: 'pointer',
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => handleBanToggle(u.id, u.username)}
+                          style={{
+                            padding: '6px 12px', fontSize: 12, fontWeight: 700,
+                            background: isBanned ? 'var(--c-accent)' : 'var(--c-danger)',
+                            color: '#fff', border: 'none', borderRadius: 99, cursor: 'pointer',
+                          }}
+                        >
+                          {isBanned ? 'Unban' : '🚫 Ban'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )

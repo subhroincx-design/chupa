@@ -150,8 +150,8 @@ function AddMembersModal({ group, currentMembers, onAdd, onClose, onMembersAdded
   )
 }
 
-export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers }) {
-  const { user } = useAuth()
+export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, onRemoveMember, onDeleteGroup }) {
+  const { user, profile, isOwner } = useAuth()
   const { messages, loading, members, sendMessage, deleteMessage, refetchMembers } = useGroupMessages(group?.id)
   const [replyingTo, setReplyingTo] = useState(null)
   const [showOptions, setShowOptions] = useState(false)
@@ -269,6 +269,19 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers })
             >
               🚪 Leave group
             </button>
+            {(isOwner || group?.created_by === user?.id) && (
+              <button
+                onClick={async () => {
+                  setShowOptions(false)
+                  if (window.confirm(`Delete "${group.name}" completely?`)) {
+                    await onDeleteGroup?.(group.id)
+                  }
+                }}
+                style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-danger)', background: 'none', cursor: 'pointer', borderTop: '1px solid var(--c-border)', fontWeight: 700 }}
+              >
+                🗑️ Delete group
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -391,6 +404,19 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers })
                     <span style={{ fontSize: 10.5, color: 'var(--c-accent)', fontWeight: 700, background: 'var(--c-accent-light)', padding: '2px 6px', borderRadius: 99 }}>
                       Admin
                     </span>
+                  )}
+                  {(isOwner || group?.created_by === user?.id) && m.id !== user?.id && m.username?.toLowerCase() !== 'subhro' && (
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`Remove ${m.name} from group?`)) {
+                          await onRemoveMember?.(group.id, m.id)
+                          refetchMembers()
+                        }
+                      }}
+                      style={{ fontSize: 11, color: 'var(--c-danger)', background: 'rgba(239,68,68,0.1)', border: 'none', padding: '4px 8px', borderRadius: 99, cursor: 'pointer', fontWeight: 700 }}
+                    >
+                      Remove
+                    </button>
                   )}
                 </div>
               ))}

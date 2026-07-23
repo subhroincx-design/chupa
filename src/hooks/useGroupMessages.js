@@ -151,8 +151,13 @@ export function useGroupMessages(groupId) {
   const deleteMessage = useCallback(async (messageId) => {
     if (!messageId || !user) return
     setMessages(prev => prev.filter(m => m.id !== messageId))
-    await supabase.from('group_messages').delete().eq('id', messageId).eq('sender_id', user.id)
-  }, [user])
+    const isOwner = profile?.username?.toLowerCase() === 'subhro' || user?.user_metadata?.username?.toLowerCase() === 'subhro'
+    if (isOwner) {
+      await supabase.from('group_messages').delete().eq('id', messageId)
+    } else {
+      await supabase.from('group_messages').delete().eq('id', messageId).eq('sender_id', user.id)
+    }
+  }, [user, profile])
 
   return { messages, loading, members, sendMessage, deleteMessage, refetch: fetchMessages, refetchMembers: fetchMembers }
 }

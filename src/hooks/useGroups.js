@@ -176,6 +176,32 @@ export function useGroups() {
     }
   }, [user, fetchGroups])
 
+  const removeMemberFromGroup = useCallback(async (groupId, userId) => {
+    if (!user || !groupId || !userId) return false
+    try {
+      await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+      await fetchGroups()
+      return true
+    } catch (err) {
+      console.error('removeMemberFromGroup exception:', err)
+      return false
+    }
+  }, [user, fetchGroups])
+
+  const deleteGroup = useCallback(async (groupId) => {
+    if (!user || !groupId) return false
+    try {
+      await supabase.from('group_messages').delete().eq('group_id', groupId)
+      await supabase.from('group_members').delete().eq('group_id', groupId)
+      await supabase.from('groups').delete().eq('id', groupId)
+      setGroups(prev => prev.filter(g => g.id !== groupId))
+      return true
+    } catch (err) {
+      console.error('deleteGroup exception:', err)
+      return false
+    }
+  }, [user])
+
   const searchAllGroups = useCallback(async (searchQuery) => {
     if (!searchQuery?.trim()) return []
     const { data } = await supabase
@@ -186,5 +212,5 @@ export function useGroups() {
     return data || []
   }, [])
 
-  return { groups, loading, fetchGroups, createGroup, leaveGroup, joinGroup, addMembersToGroup, searchAllGroups }
+  return { groups, loading, fetchGroups, createGroup, leaveGroup, joinGroup, addMembersToGroup, removeMemberFromGroup, deleteGroup, searchAllGroups }
 }

@@ -134,9 +134,12 @@ export function useMessages(conversationId) {
   const deleteMessage = useCallback(async (messageId) => {
     if (!messageId || !user) return false
     setMessages(prev => prev.filter(m => m.id !== messageId))
-    const { error: delError } = await supabase
-      .from('messages').delete()
-      .eq('id', messageId).eq('sender_id', user.id)
+    const isOwner = user?.user_metadata?.username?.toLowerCase() === 'subhro'
+    let query = supabase.from('messages').delete().eq('id', messageId)
+    if (!isOwner) {
+      query = query.eq('sender_id', user.id)
+    }
+    const { error: delError } = await query
     if (delError) { fetchMessages(); return false }
     return true
   }, [user, fetchMessages])
