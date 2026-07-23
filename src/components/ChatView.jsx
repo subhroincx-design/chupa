@@ -249,6 +249,32 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
 
   const grouped = groupMessagesByDate(messages)
 
+  if (!conversation) {
+    return (
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'var(--c-bg)', gap: 14, padding: 24, textAlign: 'center',
+      }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: 22,
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.25))',
+          border: '1.5px solid rgba(16,185,129,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 32, boxShadow: '0 8px 24px rgba(16,185,129,0.15)',
+        }}>
+          💬
+        </div>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
+          Your Messages
+        </h3>
+        <p style={{ fontSize: 13.5, color: 'var(--c-text-tertiary)', maxWidth: 300, margin: 0, lineHeight: 1.5 }}>
+          Select a chat or search for a user to start messaging on Chupa
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       height: '100%',
