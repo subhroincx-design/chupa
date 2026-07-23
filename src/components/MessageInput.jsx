@@ -103,18 +103,18 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 14px 6px',
-          background: 'var(--c-bg)',
+          background: 'var(--c-surface)',
           borderBottom: '1px solid var(--c-border)',
         }}>
-          <div style={{ flex: 1, minWidth: 0, borderLeft: '3px solid var(--c-accent)', paddingLeft: 8 }}>
-            <span style={{ fontWeight: 600, color: 'var(--c-accent)', display: 'block', fontSize: 11 }}>
-              Replying to {replyingTo.senderName || 'user'}
+          <div style={{ flex: 1, minWidth: 0, borderLeft: '3.5px solid var(--c-accent)', paddingLeft: 10 }}>
+            <span style={{ fontWeight: 700, color: 'var(--c-accent)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5 }}>
+              <span>↩</span> Replying to {replyingTo.senderName || 'user'}
             </span>
-            <span style={{ color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: 12 }}>
+            <span style={{ color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: 12.5, marginTop: 1 }}>
               {replyingTo.message.content || '[Image]'}
             </span>
           </div>
-          <button onClick={onCancelReply} style={{ padding: 4, fontSize: 14, color: 'var(--c-text-tertiary)', cursor: 'pointer', marginLeft: 8 }}>✕</button>
+          <button onClick={onCancelReply} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--c-bg)', border: '1px solid var(--c-border)', fontSize: 12, color: 'var(--c-text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       )}
 

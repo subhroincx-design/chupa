@@ -300,21 +300,43 @@ const MessageBubble = memo(function MessageBubble({
           {/* Quoted Reply Card Header */}
           {quote && (
             <div
-              onClick={() => onReply?.({ message, senderName })}
+              onClick={(e) => {
+                e.stopPropagation()
+                onReply?.({ message, senderName })
+              }}
               style={{
-                margin: '6px 8px 2px',
-                padding: '5px 9px',
-                borderRadius: 8,
-                background: isSender ? 'rgba(255, 255, 255, 0.2)' : 'var(--c-bg)',
-                borderLeft: `3px solid ${isSender ? '#ffffff' : 'var(--c-accent)'}`,
-                fontSize: 12,
+                margin: '6px 8px 3px',
+                padding: '7px 10px',
+                borderRadius: 10,
+                background: isSender ? 'rgba(255, 255, 255, 0.22)' : 'rgba(5, 150, 105, 0.08)',
+                borderLeft: `3.5px solid ${isSender ? '#ffffff' : 'var(--c-accent)'}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
                 cursor: 'pointer',
+                transition: 'background 120ms',
               }}
             >
-              <div style={{ fontWeight: 700, color: isSender ? '#ffffff' : 'var(--c-accent)', marginBottom: 2 }}>
-                ↩ {quote.author}
+              <div style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: isSender ? '#ffffff' : 'var(--c-accent)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                letterSpacing: '0.01em',
+              }}>
+                <span style={{ fontSize: 10 }}>↩</span> {quote.author}
               </div>
-              <div style={{ color: isSender ? 'rgba(255, 255, 255, 0.88)' : 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{
+                fontSize: 12.5,
+                lineHeight: 1.3,
+                color: isSender ? 'rgba(255, 255, 255, 0.92)' : 'var(--c-text-secondary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
+              }}>
                 {quote.text}
               </div>
             </div>
