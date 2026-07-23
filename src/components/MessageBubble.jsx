@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect } from 'react'
+import Avatar from './Avatar'
 
 function formatTime(dateStr) {
   const d = new Date(dateStr)
@@ -76,6 +77,7 @@ function Lightbox({ src, onClose }) {
 
 const MessageBubble = memo(function MessageBubble({
   message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isDelivered,
+  senderAvatar, showAvatar, onOpenProfile, showSenderHeader, isOwner
 }) {
   const [showMenu, setShowMenu] = useState(false)
   const [openUpward, setOpenUpward] = useState(false)
@@ -130,11 +132,30 @@ const MessageBubble = memo(function MessageBubble({
 
       <div style={{
         display: 'flex',
+        alignItems: 'flex-end',
         justifyContent: isSender ? 'flex-end' : 'flex-start',
+        gap: 6,
         marginTop,
         position: 'relative',
         zIndex: showMenu ? 100 : 1,
       }}>
+        {/* Member Avatar for Group Chats */}
+        {!isSender && (
+          <div style={{ width: 30, height: 30, flexShrink: 0, marginBottom: 2 }}>
+            {showAvatar ? (
+              <div
+                onClick={() => onOpenProfile?.({ id: message.sender_id, name: senderName, avatar_url: senderAvatar })}
+                style={{ cursor: 'pointer' }}
+                title={senderName}
+              >
+                <Avatar name={senderName} url={senderAvatar} size={30} />
+              </div>
+            ) : (
+              <div style={{ width: 30, height: 30 }} />
+            )}
+          </div>
+        )}
+
         <div
           ref={bubbleRef}
           style={{
@@ -147,6 +168,29 @@ const MessageBubble = memo(function MessageBubble({
             overflow: 'hidden',
           }}
         >
+          {/* Group Sender Header */}
+          {!isSender && showSenderHeader && (
+            <div
+              onClick={() => onOpenProfile?.({ id: message.sender_id, name: senderName, avatar_url: senderAvatar })}
+              style={{
+                padding: '6px 12px 0',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--c-accent)' }}>
+                {senderName}
+              </span>
+              {isOwner && (
+                <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99 }}>
+                  👑 OWNER
+                </span>
+              )}
+            </div>
+          )}
           {/* Action trigger */}
           <button
             onClick={handleToggleMenu}

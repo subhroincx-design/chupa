@@ -303,36 +303,32 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, o
             <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>Send a message or image to start chatting</p>
           </div>
         ) : (
-          grouped.map(({ msg, showDate, dateLabel, isConsecutive }) => {
+          grouped.map(({ msg, showDate, dateLabel, isConsecutive }, idx) => {
             const isSender = msg.sender_id === user?.id
+            const nextMsg = grouped[idx + 1]?.msg
+            const isNextSameSender = nextMsg && nextMsg.sender_id === msg.sender_id && !grouped[idx + 1]?.showDate
+            const showAvatar = !isSender && !isNextSameSender
+            const showSenderHeader = !isSender && (!isConsecutive || showDate)
+            const isSubhroOwner = msg.sender_name?.toLowerCase() === 'subhro' || msg.sender_name?.toLowerCase()?.includes('subhro')
+
             return (
-              <div key={msg.id}>
-                {/* Show sender name for group messages if not sender */}
-                {!isSender && !isConsecutive && (
-                  <div
-                    onClick={() => onOpenProfile?.({ id: msg.sender_id, name: msg.sender_name, avatar_url: msg.sender_avatar })}
-                    style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', margin: '8px 0 2px 4px', display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}
-                  >
-                    <span>{msg.sender_name || 'Member'}</span>
-                    {(msg.sender_name?.toLowerCase() === 'subhro' || msg.sender_name?.toLowerCase()?.includes('subhro')) && (
-                      <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99 }}>
-                        👑 OWNER
-                      </span>
-                    )}
-                  </div>
-                )}
-                <MessageBubble
-                  message={msg}
-                  isSender={isSender}
-                  showDate={showDate}
-                  dateLabel={dateLabel}
-                  isConsecutive={isConsecutive}
-                  senderName={isSender ? 'You' : msg.sender_name || 'Member'}
-                  isDelivered={true}
-                  onReply={(m) => setReplyingTo(m)}
-                  onDelete={deleteMessage}
-                />
-              </div>
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isSender={isSender}
+                showDate={showDate}
+                dateLabel={dateLabel}
+                isConsecutive={isConsecutive}
+                senderName={isSender ? 'You' : msg.sender_name || 'Member'}
+                senderAvatar={msg.sender_avatar}
+                showAvatar={showAvatar}
+                showSenderHeader={showSenderHeader}
+                isOwner={isSubhroOwner}
+                onOpenProfile={onOpenProfile}
+                isDelivered={true}
+                onReply={(m) => setReplyingTo(m)}
+                onDelete={deleteMessage}
+              />
             )
           })
         )}
