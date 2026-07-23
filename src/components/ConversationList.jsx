@@ -265,6 +265,11 @@ export default function ConversationList({
         {activeTab === 'chats' ? (
           loading ? (
             <div>{[1, 2, 3, 4].map((i) => <SkeletonConversation key={i} />)}</div>
+          ) : error ? (
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <p style={{ fontSize: 13, color: 'var(--c-danger)', margin: '0 0 8px', fontWeight: 600 }}>⚠️ {error}</p>
+              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', margin: 0 }}>Please refresh the page</p>
+            </div>
           ) : sortedConversations.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 24px', textAlign: 'center' }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No conversations yet</p>

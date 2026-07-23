@@ -12,7 +12,7 @@ import CreateGroupModal from '../components/CreateGroupModal'
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { conversations, loading: convsLoading, deleteConversation } = useConversations()
+  const { conversations, loading: convsLoading, error: convsError, deleteConversation } = useConversations()
   const { groups, createGroup, leaveGroup } = useGroups()
   const { query, results, searching, search, clearSearch } = useSearch()
 
@@ -107,10 +107,78 @@ export default function Dashboard() {
   const handleSearchResultClick = useCallback(
     async (selectedUser) => {
       try {
-        const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+        let convId = null
+
+        // 1. Try RPC get_or_create_conversation (with p_user_a / p_user_b)
+        const { data: rpcId, error: rpcErr } = await supabase.rpc('get_or_create_conversation', {
           p_user_a: user.id,
           p_user_b: selectedUser.id,
         })
+
+        if (!rpcErr && rpcId) {
+          convId = rpcId
+        } else {
+          // 2. Try RPC get_or_create_conversation (with p_user_1 / p_user_2)
+          const { data: rpcId2, error: rpcErr2 } = await supabase.rpc('get_or_create_conversation', {
+            p_user_1: user.id,
+            p_user_2: selectedUser.id,
+          })
+          if (!rpcErr2 && rpcId2) {
+            convId = rpcId2
+          } else {
+            // 3. Fallback to direct table queries
+            const p1 = user.id < selectedUser.id ? user.id : selectedUser.id
+            const p2 = user.id < selectedUser.id ? selectedUser.id : user.id
+
+            // Check if existing conversation with participant_1 / participant_2
+            const { data: ex1 } = await supabase
+              .from('conversations')
+              .select('id')
+              .or(`and(participant_1.eq.${p1},participant_2.eq.${p2}),and(participant_1.eq.${p2},participant_2.eq.${p1})`)
+              .maybeSingle()
+
+            if (ex1?.id) {
+              convId = ex1.id
+            } else {
+              // Check if existing conversation with user_a / user_b
+              const { data: ex2 } = await supabase
+                .from('conversations')
+                .select('id')
+                .or(`and(user_a.eq.${p1},user_b.eq.${p2}),and(user_a.eq.${p2},user_b.eq.${p1})`)
+                .maybeSingle()
+
+              if (ex2?.id) {
+                convId = ex2.id
+              } else {
+                // Try inserting with participant_1 / participant_2
+                const { data: ins1, error: insErr1 } = await supabase
+                  .from('conversations')
+                  .insert({ participant_1: p1, participant_2: p2 })
+                  .select('id')
+                  .single()
+
+                if (!insErr1 && ins1?.id) {
+                  convId = ins1.id
+                } else {
+                  // Try inserting with user_a / user_b
+                  const { data: ins2 } = await supabase
+                    .from('conversations')
+                    .insert({ user_a: p1, user_b: p2 })
+                    .select('id')
+                    .single()
+
+                  convId = ins2?.id || null
+                }
+              }
+            }
+          }
+        }
+
+        if (!convId) {
+          console.error('Could not get or create conversation ID')
+          return
+        }
+
         const conv = {
           conversation_id: convId,
           other_user_id: selectedUser.id,
@@ -120,6 +188,7 @@ export default function Dashboard() {
           last_message: null,
           last_message_at: null,
         }
+
         setActiveTab('chats')
         setActiveConversation(conv)
         setActiveGroup(null)
@@ -153,6 +222,7 @@ export default function Dashboard() {
     searching,
     onSearchResultClick: handleSearchResultClick,
     loading: convsLoading,
+    error: convsError,
   }
 
   /* ── Mobile View ── */

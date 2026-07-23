@@ -20,39 +20,94 @@ export function useConversations() {
     }
 
     try {
-      // Bypass the RPC because the user might have an outdated database function
-      const { data: convs, error: convError } = await supabase
+      let rawConvs = []
+      let convError = null
+
+      // Attempt 1: Query conversations table with participant_1 / participant_2
+      const res1 = await supabase
         .from('conversations')
         .select('*')
         .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
 
-      if (convError) {
-        console.error('Fetch conversations error:', convError)
-        if (isMounted.current) setError(convError.message)
-        return
+      if (!res1.error && res1.data && res1.data.length > 0) {
+        rawConvs = res1.data.map((c) => ({
+          id: c.id,
+          other_user_id: c.participant_1 === user.id ? c.participant_2 : c.participant_1,
+          created_at: c.created_at,
+        }))
+      } else {
+        // Attempt 2: Query conversations table with user_a / user_b
+        const res2 = await supabase
+          .from('conversations')
+          .select('*')
+          .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+
+        if (!res2.error && res2.data && res2.data.length > 0) {
+          rawConvs = res2.data.map((c) => ({
+            id: c.id,
+            other_user_id: c.user_a === user.id ? c.user_b : c.user_a,
+            created_at: c.created_at,
+          }))
+        } else {
+          // Attempt 3: Try RPC get_conversations_for_user
+          const res3 = await supabase.rpc('get_conversations_for_user', { p_uid: user.id })
+          if (!res3.error && res3.data && res3.data.length > 0) {
+            const formatted = res3.data.map((c) => ({
+              conversation_id: c.conversation_id || c.id,
+              other_user_id: c.other_user_id,
+              other_user_name: c.other_user_name || 'User',
+              other_user_username: c.other_user_username || '',
+              other_user_avatar: c.other_user_avatar || null,
+              last_message: c.last_message || null,
+              last_message_image: c.last_message_image || null,
+              last_message_at: c.last_message_at || c.created_at,
+              conversation_created_at: c.conversation_created_at || c.created_at,
+            }))
+            globalConversationsCache = formatted
+            if (isMounted.current) {
+              setConversations(formatted)
+              setError(null)
+            }
+            return
+          }
+          convError = res1.error || res2.error || res3.error
+        }
       }
 
-      if (!convs || convs.length === 0) {
-        globalConversationsCache = []
-        if (isMounted.current) {
-          setConversations([])
-          setError(null)
+      if (rawConvs.length === 0) {
+        if (convError && res1.error?.code !== 'PGRST116') {
+          console.error('Fetch conversations error:', convError)
+          if (isMounted.current) setError(convError.message || 'Failed to fetch conversations')
+        } else {
+          globalConversationsCache = []
+          if (isMounted.current) {
+            setConversations([])
+            setError(null)
+          }
         }
         return
       }
 
-      const otherIds = convs.map(c => c.participant_1 === user.id ? c.participant_2 : c.participant_1)
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, username, avatar_url')
-        .in('id', otherIds)
+      // Fetch profiles for all other users
+      const otherIds = Array.from(new Set(rawConvs.map((c) => c.other_user_id).filter(Boolean)))
+      const profilesMap = {}
+      if (otherIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url')
+          .in('id', otherIds)
 
+        if (profiles) {
+          profiles.forEach((p) => {
+            profilesMap[p.id] = p
+          })
+        }
+      }
+
+      // Fetch last message for each conversation safely using select('*')
       const enriched = await Promise.all(
-        convs.map(async (c) => {
-          const otherId = c.participant_1 === user.id ? c.participant_2 : c.participant_1
-          const profile = profiles?.find((p) => p.id === otherId)
-          
-          // Select * to safely avoid crashes if image_url column doesn't exist
+        rawConvs.map(async (c) => {
+          const profile = profilesMap[c.other_user_id]
           const { data: msg } = await supabase
             .from('messages')
             .select('*')
@@ -63,8 +118,8 @@ export function useConversations() {
 
           return {
             conversation_id: c.id,
-            other_user_id: otherId,
-            other_user_name: profile?.name || 'Unknown',
+            other_user_id: c.other_user_id,
+            other_user_name: profile?.name || 'User',
             other_user_username: profile?.username || '',
             other_user_avatar: profile?.avatar_url || null,
             last_message: msg?.content || null,
@@ -75,7 +130,7 @@ export function useConversations() {
         })
       )
 
-      // Sort by newest message first
+      // Sort by newest message or creation date
       enriched.sort((a, b) => {
         const timeA = new Date(a.last_message_at || a.conversation_created_at).getTime()
         const timeB = new Date(b.last_message_at || b.conversation_created_at).getTime()
