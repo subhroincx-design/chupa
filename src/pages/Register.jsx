@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 import Avatar from '../components/Avatar'
+import InstallGuideModal from '../components/InstallGuideModal'
 
 function InputField({ id, label, type, value, onChange, placeholder, autoComplete, autoFocus, error, prefix, suffix, hint }) {
   const [focused, setFocused] = useState(false)
@@ -58,6 +59,7 @@ function InputField({ id, label, type, value, onChange, placeholder, autoComplet
 
 export default function Register() {
   const navigate = useNavigate()
+  const [showInstallModal, setShowInstallModal] = useState(false)
 
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
@@ -126,7 +128,6 @@ export default function Register() {
     e.preventDefault()
     setGlobalError('')
 
-    // Validate
     let hasErr = false
     if (name.trim().length < 2) { setNameError('At least 2 characters'); hasErr = true }
     if (username.length < 3) { setUsernameError('At least 3 characters'); hasErr = true }
@@ -138,7 +139,6 @@ export default function Register() {
 
     setSubmitting(true)
     try {
-      // 1. Create auth user with email + password
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -158,7 +158,6 @@ export default function Register() {
         return
       }
 
-      // 2. Insert profile row
       const { error: profileErr } = await supabase.from('profiles').upsert({
         id: userId,
         email: email.trim(),
@@ -175,7 +174,6 @@ export default function Register() {
         return
       }
 
-      // 3. Upload avatar if provided
       if (avatarFile) {
         try {
           const ext = avatarFile.name.split('.').pop().toLowerCase()
@@ -251,13 +249,24 @@ export default function Register() {
     }}>
       <div className="fade-in" style={{ width: '100%', maxWidth: 420 }}>
 
-        {/* Back to login */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        {/* Back to login & Install button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <button
             onClick={() => navigate('/login')}
             style={{ fontSize: 13, color: 'var(--c-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
           >
             ← Sign In
+          </button>
+          <button
+            onClick={() => setShowInstallModal(true)}
+            style={{
+              padding: '6px 12px', fontSize: 12.5, fontWeight: 700,
+              color: '#fff', background: 'var(--c-accent)',
+              border: 'none', borderRadius: 99, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <span>📲</span> <span>Install App</span>
           </button>
         </div>
 
@@ -444,6 +453,8 @@ export default function Register() {
           By creating an account you agree to use Chupa responsibly.
         </p>
       </div>
+
+      {showInstallModal && <InstallGuideModal onClose={() => setShowInstallModal(false)} />}
     </div>
   )
 }
