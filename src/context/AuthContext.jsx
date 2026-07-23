@@ -114,6 +114,26 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Realtime Ban Enforcement: when subhro bans someone, instantly lock them out and revoke session
+  useEffect(() => {
+    if (!user) return
+
+    const checkBan = () => {
+      checkBanStatus(user.id, profile?.username || user?.user_metadata?.username)
+    }
+
+    const banChannel = supabase.channel('realtime-banned-users-check')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banned_users' }, checkBan)
+      .subscribe()
+
+    const timer = setInterval(checkBan, 4000)
+
+    return () => {
+      supabase.removeChannel(banChannel)
+      clearInterval(timer)
+    }
+  }, [user, profile?.username, checkBanStatus])
+
   const fetchProfile = async (userId, targetUser = null) => {
     setProfileFetched(false)
     const currentUser = targetUser || user

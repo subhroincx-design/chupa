@@ -70,13 +70,31 @@ export default function Login() {
         email = data.email
       }
 
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: pw })
+      const { data: authData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password: pw })
       if (signInErr) {
         setLoginError(
           signInErr.message === 'Invalid login credentials'
             ? 'Wrong password or account not found'
             : signInErr.message
         )
+      } else if (authData?.user) {
+        const uId = authData.user.id
+        const uName = authData.user.user_metadata?.username || ''
+        const { data: bData } = await supabase
+          .from('banned_users')
+          .select('*')
+          .or(`user_id.eq.${uId},username.ilike.${uName}`)
+          .maybeSingle()
+
+        const bannedHandles = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
+        const isLocallyBanned = uName && bannedHandles.map(h => h.toLowerCase()).includes(uName.toLowerCase())
+
+        if (bData || isLocallyBanned) {
+          await supabase.auth.signOut()
+          setLoginError('🚫 Your account has been suspended by Platform Owner @subhro and cannot log in.')
+          setLoginLoading(false)
+          return
+        }
       }
     } catch (err) {
       setLoginError(err.message || 'Something went wrong')
