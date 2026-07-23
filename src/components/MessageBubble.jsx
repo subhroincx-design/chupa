@@ -139,6 +139,7 @@ const MessageBubble = memo(function MessageBubble({
   const [copied, setCopied] = useState(false)
   const [lightbox, setLightbox] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const bubbleRef = useRef(null)
   const menuRef = useRef(null)
 
@@ -187,15 +188,19 @@ const MessageBubble = memo(function MessageBubble({
       {lightbox && <Lightbox src={message.image_url} onClose={() => setLightbox(false)} />}
       {showDate && <DateSeparator label={dateLabel} />}
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: isSender ? 'flex-end' : 'flex-start',
-        gap: 6,
-        marginTop,
-        position: 'relative',
-        zIndex: showMenu ? 100 : 1,
-      }}>
+      <div
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: isSender ? 'flex-end' : 'flex-start',
+          gap: 6,
+          marginTop,
+          position: 'relative',
+          zIndex: showMenu ? 100 : 1,
+        }}
+      >
         {/* Member Avatar for Group Chats */}
         {!isSender && (
           <div style={{ width: 30, height: 30, flexShrink: 0, marginBottom: 2 }}>
@@ -213,9 +218,14 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        {/* Sender Quick Actions (placed to the left of sender bubble) */}
+        {/* Sender Quick Actions (Hover-only or when Menu is open) */}
         {isSender && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0,
+            opacity: (isHovered || showMenu) ? 1 : 0,
+            pointerEvents: (isHovered || showMenu) ? 'auto' : 'none',
+            transition: 'opacity 150ms ease-in-out',
+          }}>
             <button
               onClick={() => onReply?.({ message, senderName })}
               title="Reply to message"
@@ -405,9 +415,14 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         </div>
 
-        {/* Recipient Quick Actions (placed to the right of recipient bubble) */}
+        {/* Recipient Quick Actions (Hover-only or when Menu is open) */}
         {!isSender && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2, flexShrink: 0,
+            opacity: (isHovered || showMenu) ? 1 : 0,
+            pointerEvents: (isHovered || showMenu) ? 'auto' : 'none',
+            transition: 'opacity 150ms ease-in-out',
+          }}>
             <button
               onClick={() => onReply?.({ message, senderName })}
               title="Reply to message"
