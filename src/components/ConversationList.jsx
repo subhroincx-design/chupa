@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAuth } from '../context/AuthContext'
 import SearchBar from './SearchBar'
