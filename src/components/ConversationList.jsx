@@ -165,6 +165,17 @@ export default function ConversationList({
     return [...pinned, ...unpinned]
   }, [conversations, pinnedIds])
 
+  const filteredJoinedGroups = useMemo(() => {
+    if (activeTab !== 'groups' || !searchQuery?.trim()) return groups
+    const q = searchQuery.trim().toLowerCase()
+    return groups.filter((g) => g.name?.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q))
+  }, [groups, activeTab, searchQuery])
+
+  const publicGroupResults = useMemo(() => {
+    if (activeTab !== 'groups' || !searchQuery?.trim()) return []
+    return groupSearchResults.filter((pg) => !groups.some((g) => g.id === pg.id))
+  }, [groupSearchResults, groups, activeTab, searchQuery])
+
   const shouldVirtualize = activeTab === 'chats' && sortedConversations.length > 50
   const virtualizer = useVirtualizer({
     count: sortedConversations.length,
@@ -236,54 +247,19 @@ export default function ConversationList({
           value={searchQuery}
           onChange={onSearch}
           onClear={onClearSearch}
-          placeholder={activeTab === 'groups' ? 'Search groups...' : 'Search people...'}
+          placeholder={activeTab === 'groups' ? 'Search groups by name or topic...' : 'Search people...'}
         />
       </div>
 
-      {/* Search results */}
-      {searchQuery && (
+      {/* Search results overlay for Chats tab */}
+      {searchQuery && activeTab === 'chats' && (
         <div style={{ borderBottom: '1px solid var(--c-border)', flexShrink: 0 }}>
           {searching ? (
             <div style={{ padding: '4px 0' }}>
               {[1, 2].map((i) => <SkeletonConversation key={i} />)}
             </div>
-          ) : activeTab === 'groups' ? (
-            groupSearchResults.length > 0 ? (
-              <div style={{ maxHeight: 220, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                {groupSearchResults.map((g) => (
-                  <div
-                    key={g.id}
-                    onClick={() => onGroupSearchResultClick?.(g)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                      cursor: 'pointer', borderBottom: '1px solid var(--c-border)',
-                      transition: 'background 120ms',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <Avatar name={g.name} url={g.avatar_url} size={38} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {g.name}
-                      </p>
-                      <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {g.description || 'Public Group'}
-                      </p>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-accent)' }}>
-                      Open →
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ padding: '14px 16px', fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>
-                No groups found
-              </p>
-            )
           ) : searchResults.length > 0 ? (
-            <div style={{ maxHeight: 220, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ maxHeight: 240, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {searchResults.map((u) => <SearchResult key={u.id} user={u} onClick={onSearchResultClick} />)}
             </div>
           ) : (
@@ -349,45 +325,137 @@ export default function ConversationList({
         ) : (
           /* Groups tab */
           <div>
-            <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Your Groups ({groups.length})
-              </span>
-              <button
-                onClick={onCreateGroupClick}
-                style={{
-                  fontSize: 12.5, fontWeight: 600, color: 'var(--c-accent)',
-                  background: 'var(--c-accent-light)', border: 'none',
-                  padding: '5px 10px', borderRadius: 99, cursor: 'pointer',
-                }}
-              >
-                + New Group
-              </button>
-            </div>
+            {searchQuery?.trim() ? (
+              /* Search mode under Groups tab */
+              <div>
+                {searching ? (
+                  <div style={{ padding: '8px 0' }}>
+                    {[1, 2, 3].map((i) => <SkeletonConversation key={i} />)}
+                  </div>
+                ) : (
+                  <>
+                    {/* Joined Groups matching query */}
+                    {filteredJoinedGroups.length > 0 && (
+                      <div>
+                        <div style={{ padding: '8px 14px 4px', fontSize: 11, fontWeight: 700, color: 'var(--c-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Your Joined Groups ({filteredJoinedGroups.length})
+                        </div>
+                        {filteredJoinedGroups.map((g) => (
+                          <GroupItem
+                            key={g.id}
+                            group={g}
+                            isActive={activeGroupId === g.id}
+                            onClick={onSelectGroup}
+                          />
+                        ))}
+                      </div>
+                    )}
 
-            {groups.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No groups yet</p>
-                <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '0 0 14px' }}>Create a group to chat with multiple people</p>
-                <button
-                  onClick={onCreateGroupClick}
-                  style={{
-                    padding: '8px 16px', fontSize: 13, fontWeight: 600,
-                    background: 'var(--c-accent)', color: '#fff', borderRadius: 10, cursor: 'pointer',
-                  }}
-                >
-                  + Create Group
-                </button>
+                    {/* Discover Public Groups matching query */}
+                    {publicGroupResults.length > 0 && (
+                      <div>
+                        <div style={{ padding: '12px 14px 4px', fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Discover Public Groups ({publicGroupResults.length})
+                        </div>
+                        {publicGroupResults.map((g) => (
+                          <div
+                            key={g.id}
+                            onClick={() => onGroupSearchResultClick?.(g)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
+                              cursor: 'pointer', borderBottom: '1px solid var(--c-border)',
+                              transition: 'background 120ms', minHeight: 60,
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <Avatar name={g.name} url={g.avatar_url} size={42} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {g.name}
+                              </p>
+                              <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {g.description || 'Public Group'}
+                              </p>
+                            </div>
+                            <button
+                              style={{
+                                padding: '6px 12px', fontSize: 12, fontWeight: 700,
+                                background: 'var(--c-accent-light)', color: 'var(--c-accent)',
+                                border: 'none', borderRadius: 99, cursor: 'pointer', flexShrink: 0,
+                              }}
+                            >
+                              + Join & Chat
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {filteredJoinedGroups.length === 0 && publicGroupResults.length === 0 && (
+                      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No groups found</p>
+                        <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '0 0 14px' }}>
+                          No matching joined or public groups for "{searchQuery}"
+                        </p>
+                        <button
+                          onClick={onCreateGroupClick}
+                          style={{
+                            padding: '8px 16px', fontSize: 13, fontWeight: 600,
+                            background: 'var(--c-accent)', color: '#fff', borderRadius: 10, cursor: 'pointer',
+                          }}
+                        >
+                          + Create this group
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
-              groups.map((g) => (
-                <GroupItem
-                  key={g.id}
-                  group={g}
-                  isActive={activeGroupId === g.id}
-                  onClick={onSelectGroup}
-                />
-              ))
+              /* Standard view under Groups tab */
+              <div>
+                <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Your Groups ({groups.length})
+                  </span>
+                  <button
+                    onClick={onCreateGroupClick}
+                    style={{
+                      fontSize: 12.5, fontWeight: 600, color: 'var(--c-accent)',
+                      background: 'var(--c-accent-light)', border: 'none',
+                      padding: '5px 10px', borderRadius: 99, cursor: 'pointer',
+                    }}
+                  >
+                    + New Group
+                  </button>
+                </div>
+
+                {groups.length === 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No groups yet</p>
+                    <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '0 0 14px' }}>Create a group to chat with multiple people</p>
+                    <button
+                      onClick={onCreateGroupClick}
+                      style={{
+                        padding: '8px 16px', fontSize: 13, fontWeight: 600,
+                        background: 'var(--c-accent)', color: '#fff', borderRadius: 10, cursor: 'pointer',
+                      }}
+                    >
+                      + Create Group
+                    </button>
+                  </div>
+                ) : (
+                  groups.map((g) => (
+                    <GroupItem
+                      key={g.id}
+                      group={g}
+                      isActive={activeGroupId === g.id}
+                      onClick={onSelectGroup}
+                    />
+                  ))
+                )}
+              </div>
             )}
           </div>
         )}

@@ -31,15 +31,21 @@ export function useSearch() {
       timeoutRef.current = setTimeout(async () => {
         try {
           if (searchType === 'groups') {
+            const q = searchQuery.trim()
             const { data, error: groupErr } = await supabase
               .from('groups')
               .select('*')
-              .ilike('name', `%${searchQuery.trim()}%`)
+              .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
               .limit(20)
 
             if (groupErr) {
-              setError(groupErr.message)
-              setGroupResults([])
+              const { data: fallbackData } = await supabase
+                .from('groups')
+                .select('*')
+                .ilike('name', `%${q}%`)
+                .limit(20)
+              setGroupResults(fallbackData || [])
+              setError(null)
             } else {
               setGroupResults(data || [])
               setError(null)

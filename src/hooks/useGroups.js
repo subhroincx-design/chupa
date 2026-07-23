@@ -91,11 +91,35 @@ export function useGroups() {
   }, [user])
 
   const joinGroup = useCallback(async (groupId) => {
-    if (!user || !groupId) return
-    await supabase
-      .from('group_members')
-      .upsert({ group_id: groupId, user_id: user.id, role: 'member' }, { onConflict: 'group_id,user_id' })
-    await fetchGroups()
+    if (!user || !groupId) return null
+    try {
+      // Check if already a member first to preserve existing role (e.g., admin)
+      const { data: existingMember } = await supabase
+        .from('group_members')
+        .select('role')
+        .eq('group_id', groupId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!existingMember) {
+        const { error } = await supabase
+          .from('group_members')
+          .insert({ group_id: groupId, user_id: user.id, role: 'member' })
+        if (error) console.error('Error joining group:', error)
+      }
+
+      const { data: groupData } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', groupId)
+        .maybeSingle()
+
+      await fetchGroups()
+      return groupData || null
+    } catch (err) {
+      console.error('joinGroup exception:', err)
+      return null
+    }
   }, [user, fetchGroups])
 
   const searchAllGroups = useCallback(async (searchQuery) => {
