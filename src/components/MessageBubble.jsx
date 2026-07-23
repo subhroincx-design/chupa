@@ -58,6 +58,31 @@ function renderTextWithLinks(text, isSender) {
   })
 }
 
+function parseQuoteContent(content) {
+  if (!content || typeof content !== 'string' || !content.startsWith('> ')) {
+    return { quote: null, mainText: content || '' }
+  }
+  const firstLineEnd = content.indexOf('\n')
+  if (firstLineEnd === -1) {
+    return { quote: null, mainText: content }
+  }
+
+  const quoteLine = content.slice(2, firstLineEnd)
+  const mainText = content.slice(firstLineEnd + 1)
+
+  const colonIdx = quoteLine.indexOf(':')
+  if (colonIdx !== -1) {
+    const author = quoteLine.slice(0, colonIdx).trim()
+    let text = quoteLine.slice(colonIdx + 1).trim()
+    if (text.startsWith('"') && text.endsWith('"')) {
+      text = text.slice(1, -1)
+    }
+    return { quote: { author, text }, mainText }
+  }
+
+  return { quote: { author: 'Reply', text: quoteLine }, mainText }
+}
+
 // Full-screen image lightbox
 function Lightbox({ src, onClose }) {
   useEffect(() => {
@@ -155,6 +180,8 @@ const MessageBubble = memo(function MessageBubble({
   }
   const marginTop = isConsecutive && !showDate ? 2 : 8
 
+  const { quote, mainText } = parseQuoteContent(message.content)
+
   return (
     <>
       {lightbox && <Lightbox src={message.image_url} onClose={() => setLightbox(false)} />}
@@ -188,6 +215,8 @@ const MessageBubble = memo(function MessageBubble({
 
         <div
           ref={bubbleRef}
+          onDoubleClick={() => onReply?.({ message, senderName })}
+          title="Double-click to reply"
           style={{
             maxWidth: hasImage ? '72%' : '75%',
             borderRadius,
@@ -221,6 +250,30 @@ const MessageBubble = memo(function MessageBubble({
               )}
             </div>
           )}
+
+          {/* Quoted Reply Card Header */}
+          {quote && (
+            <div
+              onClick={() => onReply?.({ message, senderName })}
+              style={{
+                margin: '6px 8px 2px',
+                padding: '5px 9px',
+                borderRadius: 8,
+                background: isSender ? 'rgba(255, 255, 255, 0.2)' : 'var(--c-bg)',
+                borderLeft: `3px solid ${isSender ? '#ffffff' : 'var(--c-accent)'}`,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontWeight: 700, color: isSender ? '#ffffff' : 'var(--c-accent)', marginBottom: 2 }}>
+                ↩ {quote.author}
+              </div>
+              <div style={{ color: isSender ? 'rgba(255, 255, 255, 0.88)' : 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {quote.text}
+              </div>
+            </div>
+          )}
+
           {/* Action trigger */}
           <button
             onClick={handleToggleMenu}
@@ -314,7 +367,7 @@ const MessageBubble = memo(function MessageBubble({
                 color: isSender ? '#ffffff' : 'var(--c-text)',
                 margin: 0,
               }}>
-                {renderTextWithLinks(message.content, isSender)}
+                {renderTextWithLinks(mainText, isSender)}
               </p>
             </div>
           )}
