@@ -101,20 +101,43 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
       {/* Reply bar */}
       {replyingTo && (
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 14px 6px',
-          background: 'var(--c-surface)',
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px 7px',
+          background: 'var(--c-bg)',
           borderBottom: '1px solid var(--c-border)',
         }}>
-          <div style={{ flex: 1, minWidth: 0, borderLeft: '3.5px solid var(--c-accent)', paddingLeft: 10 }}>
-            <span style={{ fontWeight: 700, color: 'var(--c-accent)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5 }}>
-              <span>↩</span> Replying to {replyingTo.senderName || 'user'}
+          <div style={{
+            flex: 1, minWidth: 0,
+            borderLeft: '3px solid var(--c-accent)',
+            paddingLeft: 10,
+            borderRadius: '0 6px 6px 0',
+          }}>
+            <span style={{
+              fontWeight: 700, color: 'var(--c-accent)',
+              display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+              marginBottom: 1,
+            }}>
+              <span style={{ fontSize: 10 }}>↩</span>
+              {replyingTo.senderName || 'user'}
             </span>
-            <span style={{ color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: 12.5, marginTop: 1 }}>
-              {replyingTo.message.content || '[Image]'}
+            <span style={{
+              color: 'var(--c-text-secondary)', overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block',
+              fontSize: 12.5, lineHeight: 1.3,
+            }}>
+              {replyingTo.message?.image_url && !replyingTo.message?.content ? '📷 Photo' : (replyingTo.message?.content || '[Image]')}
             </span>
           </div>
-          <button onClick={onCancelReply} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--c-bg)', border: '1px solid var(--c-border)', fontSize: 12, color: 'var(--c-text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button
+            onClick={onCancelReply}
+            style={{
+              width: 26, height: 26, borderRadius: '50%',
+              background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+              fontSize: 12, color: 'var(--c-text-secondary)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >✕</button>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { sanitizeMessage } from '../utils/sanitize'
+import { isBlockActive } from '../utils/blockManager'
 
 export function useMessages(conversationId) {
   const { user } = useAuth()
@@ -56,6 +57,26 @@ export function useMessages(conversationId) {
   const sendMessage = useCallback(async (content, imageFile) => {
     if (!conversationId || !user) return false
     if (!content?.trim() && !imageFile) return false
+
+    // Verify block status with recipient before sending
+    try {
+      const { data: convData } = await supabase
+        .from('conversations')
+        .select('user1_id, user2_id')
+        .eq('id', conversationId)
+        .maybeSingle()
+
+      if (convData) {
+        const otherUserId = convData.user1_id === user.id ? convData.user2_id : convData.user1_id
+        const blocked = await isBlockActive(user.id, otherUserId)
+        if (blocked) {
+          setError('🚫 Cannot send message. You or the recipient have blocked this conversation.')
+          return false
+        }
+      }
+    } catch (blockErr) {
+      console.warn('Block check error:', blockErr)
+    }
 
     const sanitized = content?.trim() ? sanitizeMessage(content) : null
 

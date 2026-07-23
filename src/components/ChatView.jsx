@@ -7,6 +7,8 @@ import MessageInput from './MessageInput'
 import Avatar from './Avatar'
 import Logo from './Logo'
 
+import { toggleBlockUser, isBlockActive } from '../utils/blockManager'
+
 function groupMessagesByDate(messages) {
   const groups = []
   let lastDate = null
@@ -121,38 +123,23 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
     })
   }, [messages, isOtherReading])
 
-  // Block user state stored in localStorage
-  const [isBlocked, setIsBlocked] = useState(() => {
-    try {
-      const blocked = JSON.parse(localStorage.getItem('chupa-blocked-users') || '[]')
-      return conversation ? blocked.includes(conversation.other_user_id) : false
-    } catch {
-      return false
-    }
-  })
+  // Synchronized real-time block state
+  const [isBlocked, setIsBlocked] = useState(false)
 
   useEffect(() => {
-    if (!conversation) return
-    try {
-      const blocked = JSON.parse(localStorage.getItem('chupa-blocked-users') || '[]')
-      setIsBlocked(blocked.includes(conversation.other_user_id))
-    } catch {
-      setIsBlocked(false)
-    }
-  }, [conversation])
+    if (!conversation?.other_user_id || !user?.id) return
+    let active = true
+    isBlockActive(user.id, conversation.other_user_id).then((blocked) => {
+      if (active) setIsBlocked(blocked)
+    })
+    return () => { active = false }
+  }, [conversation?.other_user_id, user?.id])
 
-  const toggleBlock = () => {
-    if (!conversation) return
-    try {
-      const blocked = JSON.parse(localStorage.getItem('chupa-blocked-users') || '[]')
-      const targetId = conversation.other_user_id
-      const next = blocked.includes(targetId)
-        ? blocked.filter((id) => id !== targetId)
-        : [...blocked, targetId]
-      localStorage.setItem('chupa-blocked-users', JSON.stringify(next))
-      setIsBlocked(!isBlocked)
-    } catch { /* ignore */ }
+  const toggleBlock = async () => {
+    if (!conversation?.other_user_id || !user?.id) return
     setShowOptions(false)
+    const newStatus = await toggleBlockUser(user.id, conversation.other_user_id)
+    setIsBlocked(newStatus)
   }
 
   // Supabase Realtime Typing Broadcast Channel
@@ -414,14 +401,25 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
       {/* Block banner */}
       {isBlocked && (
         <div style={{
-          padding: '8px 14px',
-          background: 'var(--c-danger-light)',
-          color: 'var(--c-danger)',
-          fontSize: 12,
-          textAlign: 'center',
-          borderBottom: '1px solid rgba(220,38,38,0.15)',
+          padding: '7px 16px',
+          background: 'rgba(220,38,38,0.06)',
+          borderBottom: '1px solid rgba(220,38,38,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          You have blocked this user. Unblock to send messages.
+          <span style={{ fontSize: 12.5, color: 'var(--c-danger)', fontWeight: 600 }}>
+            🚫 You have blocked this user
+          </span>
+          <button
+            onClick={toggleBlock}
+            style={{
+              fontSize: 11.5, fontWeight: 700,
+              color: 'var(--c-accent)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              textDecoration: 'underline', padding: 0,
+            }}
+          >
+            Unblock
+          </button>
         </div>
       )}
 
@@ -481,13 +479,26 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
       </div>
 
       {/* ── Input ── */}
-      <MessageInput
-        onSend={sendMessage}
-        disabled={isBlocked}
-        replyingTo={replyingTo}
-        onCancelReply={() => setReplyingTo(null)}
-        onTyping={handleSendTyping}
-      />
+      {isBlocked ? (
+        <div style={{
+          padding: '14px 18px',
+          borderTop: '1px solid var(--c-border)',
+          background: 'var(--c-surface)',
+          textAlign: 'center',
+          color: 'var(--c-text-tertiary)',
+          fontSize: 13,
+        }}>
+          You can't send messages to this conversation
+        </div>
+      ) : (
+        <MessageInput
+          onSend={sendMessage}
+          disabled={false}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
+          onTyping={handleSendTyping}
+        />
+      )}
     </div>
   )
 }
