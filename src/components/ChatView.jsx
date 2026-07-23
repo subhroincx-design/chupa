@@ -38,7 +38,7 @@ function groupMessagesByDate(messages) {
   return groups
 }
 
-export default function ChatView({ conversation, onBack, onDeleteChat }) {
+export default function ChatView({ conversation, onBack, onDeleteChat, onOpenProfile }) {
   const { user, isUserOnline } = useAuth()
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
@@ -288,37 +288,47 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
           </button>
         )}
 
-        <div style={{ position: 'relative' }}>
-          <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={36} />
-          {isOtherOnline && (
-            <span style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 9, height: 9, borderRadius: '50%',
-              background: 'var(--c-accent)',
-              border: '1.5px solid var(--c-surface)',
-            }} />
-          )}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
-              {conversation.other_user_name}
-            </p>
-            {(conversation.other_user_username?.toLowerCase() === 'subhro' || conversation.other_user_name?.toLowerCase() === 'subhro') && (
-              <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
-                👑 OWNER
-              </span>
+        <div
+          onClick={() => onOpenProfile?.({
+            id: conversation.other_user_id,
+            name: conversation.other_user_name,
+            username: conversation.other_user_username,
+            avatar_url: conversation.other_user_avatar,
+          })}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: 'pointer' }}
+        >
+          <div style={{ position: 'relative' }}>
+            <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={36} />
+            {isOtherOnline && (
+              <span style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 9, height: 9, borderRadius: '50%',
+                background: 'var(--c-accent)',
+                border: '1.5px solid var(--c-surface)',
+              }} />
             )}
           </div>
-          <p style={{
-            fontSize: 11.5,
-            color: isOtherTyping ? 'var(--c-accent)' : isOtherOnline ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
-            margin: 0, lineHeight: 1,
-            fontWeight: isOtherTyping || isOtherOnline ? 600 : 400,
-          }}>
-            {isOtherTyping ? 'typing...' : isOtherOnline ? 'Online' : 'Offline'}
-          </p>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+                {conversation.other_user_name}
+              </p>
+              {(conversation.other_user_username?.toLowerCase() === 'subhro' || conversation.other_user_name?.toLowerCase() === 'subhro') && (
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                  👑 OWNER
+                </span>
+              )}
+            </div>
+            <p style={{
+              fontSize: 11.5,
+              color: isOtherTyping ? 'var(--c-accent)' : isOtherOnline ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
+              margin: 0, lineHeight: 1,
+              fontWeight: isOtherTyping || isOtherOnline ? 600 : 400,
+            }}>
+              {isOtherTyping ? 'typing...' : isOtherOnline ? 'Online' : 'Offline'}
+            </p>
+          </div>
         </div>
 
         {/* Options trigger */}

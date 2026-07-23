@@ -9,6 +9,7 @@ import ConversationList from '../components/ConversationList'
 import ChatView from '../components/ChatView'
 import GroupView from '../components/GroupView'
 import CreateGroupModal from '../components/CreateGroupModal'
+import UserProfileModal from '../components/UserProfileModal'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [activeConversation, setActiveConversation] = useState(null)
   const [activeGroup, setActiveGroup] = useState(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null)
 
   const [mobileView, setMobileView] = useState('list') // 'list' | 'chat' | 'group'
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -243,6 +245,7 @@ export default function Dashboard() {
     onGroupSearchResultClick: handleSelectGroupSearchResult,
     loading: convsLoading,
     error: convsError,
+    onOpenProfile: setSelectedUserProfile,
   }
 
   /* ── Mobile View ── */
@@ -251,7 +254,7 @@ export default function Dashboard() {
       <div style={{ position: 'fixed', inset: 0, background: 'var(--c-bg)', overflow: 'hidden' }}>
         {mobileView === 'list' && <ConversationList {...sharedListProps} />}
         {mobileView === 'chat' && (
-          <ChatView conversation={activeConversation} onBack={handleBack} onDeleteChat={handleDeleteChat} />
+          <ChatView conversation={activeConversation} onBack={handleBack} onDeleteChat={handleDeleteChat} onOpenProfile={setSelectedUserProfile} />
         )}
         {mobileView === 'group' && (
           <GroupView
@@ -260,6 +263,7 @@ export default function Dashboard() {
             onLeaveGroup={handleLeaveGroup}
             onAddMembers={addMembersToGroup}
             onRemoveMember={removeMemberFromGroup}
+            onOpenProfile={setSelectedUserProfile}
             onDeleteGroup={async (gId) => {
               await deleteGroup(gId)
               setActiveGroup(null)
@@ -281,6 +285,13 @@ export default function Dashboard() {
             onClose={() => setShowCreateGroup(false)}
           />
         )}
+        {selectedUserProfile && (
+          <UserProfileModal
+            user={selectedUserProfile}
+            onClose={() => setSelectedUserProfile(null)}
+            onStartChat={(u) => handleSearchResultClick(u)}
+          />
+        )}
       </div>
     )
   }
@@ -300,13 +311,14 @@ export default function Dashboard() {
           onLeaveGroup={handleLeaveGroup}
           onAddMembers={addMembersToGroup}
           onRemoveMember={removeMemberFromGroup}
+          onOpenProfile={setSelectedUserProfile}
           onDeleteGroup={async (gId) => {
             await deleteGroup(gId)
             setActiveGroup(null)
           }}
         />
       ) : (
-        <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
+        <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} onOpenProfile={setSelectedUserProfile} />
       )}
 
       {showCreateGroup && (
@@ -321,6 +333,14 @@ export default function Dashboard() {
             return newG
           }}
           onClose={() => setShowCreateGroup(false)}
+        />
+      )}
+
+      {selectedUserProfile && (
+        <UserProfileModal
+          user={selectedUserProfile}
+          onClose={() => setSelectedUserProfile(null)}
+          onStartChat={(u) => handleSearchResultClick(u)}
         />
       )}
     </div>

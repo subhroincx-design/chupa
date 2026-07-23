@@ -1,6 +1,6 @@
 import Avatar from './Avatar'
 
-export default function SearchResult({ user, onClick }) {
+export default function SearchResult({ user, onClick, onOpenProfile }) {
   return (
     <button
       id={`search-result-${user.username}`}
@@ -16,7 +16,17 @@ export default function SearchResult({ user, onClick }) {
       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
     >
-      <Avatar name={user.name || user.username} url={user.avatar_url} size={38} />
+      <div
+        onClick={(e) => {
+          if (onOpenProfile) {
+            e.stopPropagation()
+            onOpenProfile(user)
+          }
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        <Avatar name={user.name || user.username} url={user.avatar_url} size={38} />
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

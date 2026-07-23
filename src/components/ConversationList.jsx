@@ -22,28 +22,50 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinToggle, onClick }) {
+function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinToggle, onClick, onOpenProfile }) {
+  const [showOptions, setShowOptions] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!showOptions) return
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowOptions(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [showOptions])
+
   return (
-    <div
-      style={{
-        position: 'relative', display: 'flex', alignItems: 'center',
-        background: isActive ? 'var(--c-accent-light)' : 'transparent',
-        borderLeft: `3px solid ${isActive ? 'var(--c-accent)' : 'transparent'}`,
-        transition: 'background 120ms',
-      }}
-    >
+    <div style={{ position: 'relative', background: isActive ? 'var(--c-surface-hover)' : 'transparent', transition: 'background 100ms' }}>
       <button
-        id={`conversation-${conversation.conversation_id}`}
+        id={`conv-item-${conversation.conversation_id}`}
         onClick={() => onClick(conversation)}
         style={{
-          flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
           padding: '11px 14px', textAlign: 'left', cursor: 'pointer',
           WebkitTapHighlightColor: 'transparent', minHeight: 60, minWidth: 0,
         }}
         onMouseEnter={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'var(--c-surface-hover)' }}
         onMouseLeave={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'transparent' }}
       >
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div
+          onClick={(e) => {
+            if (onOpenProfile) {
+              e.stopPropagation()
+              onOpenProfile({
+                id: conversation.other_user_id,
+                name: conversation.other_user_name,
+                username: conversation.other_user_username,
+                avatar_url: conversation.other_user_avatar,
+              })
+            }
+          }}
+          style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+        >
           <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
           {isOnline && (
             <span style={{
@@ -139,7 +161,7 @@ export default function ConversationList({
   groups = [], activeGroupId, onSelectGroup, onCreateGroupClick,
   activeTab = 'chats', onTabChange,
   searchQuery, onSearch, onClearSearch,
-  searchResults = [], groupSearchResults = [], searching, onSearchResultClick, onGroupSearchResultClick, loading, error,
+  searchResults = [], groupSearchResults = [], searching, onSearchResultClick, onGroupSearchResultClick, loading, error, onOpenProfile,
 }) {
   const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
@@ -171,9 +193,11 @@ export default function ConversationList({
   }, [conversations, pinnedIds])
 
   const filteredJoinedGroups = useMemo(() => {
-    if (activeTab !== 'groups' || !searchQuery?.trim()) return groups
-    const q = searchQuery.trim().toLowerCase()
-    return groups.filter((g) => g.name?.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q))
+    if (activeTab !== 'groups' || !searchQuery?.trim()) return []
+    return groups.filter((g) =>
+      g.name?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+      g.description?.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    )
   }, [groups, activeTab, searchQuery])
 
   const publicGroupResults = useMemo(() => {
@@ -265,7 +289,7 @@ export default function ConversationList({
             </div>
           ) : searchResults.length > 0 ? (
             <div style={{ maxHeight: 240, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              {searchResults.map((u) => <SearchResult key={u.id} user={u} onClick={onSearchResultClick} />)}
+              {searchResults.map((u) => <SearchResult key={u.id} user={u} onClick={onSearchResultClick} onOpenProfile={onOpenProfile} />)}
             </div>
           ) : (
             <p style={{ padding: '14px 16px', fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>
@@ -309,6 +333,7 @@ export default function ConversationList({
                       isOnline={isUserOnline(conv.other_user_id)}
                       onPinToggle={togglePin}
                       onClick={onSelect}
+                      onOpenProfile={onOpenProfile}
                     />
                   </div>
                 )
@@ -324,6 +349,7 @@ export default function ConversationList({
                 isOnline={isUserOnline(conv.other_user_id)}
                 onPinToggle={togglePin}
                 onClick={onSelect}
+                onOpenProfile={onOpenProfile}
               />
             ))
           )

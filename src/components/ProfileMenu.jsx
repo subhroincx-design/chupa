@@ -372,6 +372,12 @@ export default function ProfileMenu() {
     await refreshProfile(); setEditField(null); setOpen(false); return {}
   }
 
+  const handleSaveBio = async (v) => {
+    const { error } = await supabase.from('profiles').update({ bio: v }).eq('id', profile.id)
+    if (error) return { error: error.message }
+    await refreshProfile(); setEditField(null); setOpen(false); return {}
+  }
+
   const menuItemStyle = {
     width: '100%', padding: '11px 14px',
     fontSize: 13.5, textAlign: 'left',
@@ -468,6 +474,11 @@ export default function ProfileMenu() {
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
               <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}>@</span> <span>Edit username</span>
             </button>
+            <button id="edit-bio-btn" style={menuItemStyle} onClick={() => { setEditField('bio'); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>📝</span> <span>Edit bio / about</span>
+            </button>
           </div>
 
           <div style={{ borderTop: '1px solid var(--c-border)', padding: '4px 0' }}>
@@ -500,6 +511,9 @@ export default function ProfileMenu() {
       )}
       {editField === 'username' && (
         <EditModal title="Edit username" value={profile?.username} maxLength={20} info="Once every 7 days. Letters, numbers, underscores." onSave={handleSaveUsername} onClose={() => setEditField(null)} />
+      )}
+      {editField === 'bio' && (
+        <EditModal title="Edit bio / about" value={profile?.bio} maxLength={160} info="Brief status or about intro for your profile" onSave={handleSaveBio} onClose={() => setEditField(null)} />
       )}
     </div>
   )

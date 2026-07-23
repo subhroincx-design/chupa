@@ -150,7 +150,7 @@ function AddMembersModal({ group, currentMembers, onAdd, onClose, onMembersAdded
   )
 }
 
-export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, onRemoveMember, onDeleteGroup }) {
+export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, onRemoveMember, onDeleteGroup, onOpenProfile }) {
   const { user, profile, isOwner } = useAuth()
   const { messages, loading, members, sendMessage, deleteMessage, refetchMembers } = useGroupMessages(group?.id)
   const [replyingTo, setReplyingTo] = useState(null)
@@ -309,7 +309,10 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, o
               <div key={msg.id}>
                 {/* Show sender name for group messages if not sender */}
                 {!isSender && !isConsecutive && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', margin: '8px 0 2px 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div
+                    onClick={() => onOpenProfile?.({ id: msg.sender_id, name: msg.sender_name, avatar_url: msg.sender_avatar })}
+                    style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', margin: '8px 0 2px 4px', display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+                  >
                     <span>{msg.sender_name || 'Member'}</span>
                     {(msg.sender_name?.toLowerCase() === 'subhro' || msg.sender_name?.toLowerCase()?.includes('subhro')) && (
                       <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99 }}>
@@ -388,17 +391,25 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, o
             <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {members.map((m) => (
                 <div key={m.id || Math.random()} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={m.name} url={m.avatar_url} size={34} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', display: 'block' }}>{m.name}</span>
-                      {(m.username?.toLowerCase() === 'subhro' || m.name?.toLowerCase() === 'subhro') && (
-                        <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
-                          👑 OWNER
-                        </span>
-                      )}
+                  <div
+                    onClick={() => {
+                      setShowMembersModal(false)
+                      onOpenProfile?.(m)
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: 'pointer' }}
+                  >
+                    <Avatar name={m.name} url={m.avatar_url} size={34} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', display: 'block' }}>{m.name}</span>
+                        {(m.username?.toLowerCase() === 'subhro' || m.name?.toLowerCase() === 'subhro') && (
+                          <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                            👑 OWNER
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)' }}>@{m.username}</span>
                     </div>
-                    <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)' }}>@{m.username}</span>
                   </div>
                   {m.role === 'admin' && (
                     <span style={{ fontSize: 10.5, color: 'var(--c-accent)', fontWeight: 700, background: 'var(--c-accent-light)', padding: '2px 6px', borderRadius: 99 }}>
