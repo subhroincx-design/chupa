@@ -6,6 +6,7 @@ import { sanitizeInput } from '../utils/sanitize'
 import Avatar from './Avatar'
 import AvatarUpload from './AvatarUpload'
 import InstallGuideModal from './InstallGuideModal'
+import SupportTicketsModal from './SupportTicketsModal'
 
 function AdminBanPanelModal({ onClose }) {
   const { banUser, unbanUser } = useAuth()
@@ -329,6 +330,7 @@ export default function ProfileMenu() {
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showAvatarUpload, setShowAvatarUpload] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [showSupportModal, setShowSupportModal] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
   const menuRef = useRef(null)
 
@@ -479,6 +481,11 @@ export default function ProfileMenu() {
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
               <span>📝</span> <span>Edit bio / about</span>
             </button>
+            <button id="support-tickets-btn" style={{ ...menuItemStyle, color: 'var(--c-accent)', fontWeight: 600 }} onClick={() => { setShowSupportModal(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-accent-light)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>🎧</span> <span>Support Tickets</span>
+            </button>
           </div>
 
           <div style={{ borderTop: '1px solid var(--c-border)', padding: '4px 0' }}>
@@ -506,6 +513,7 @@ export default function ProfileMenu() {
       {showSettings && <SettingsModal user={user} profile={profile} onClose={() => setShowSettings(false)} />}
       {showAvatarUpload && <AvatarUpload onClose={() => setShowAvatarUpload(false)} />}
       {showAdminPanel && <AdminBanPanelModal onClose={() => setShowAdminPanel(false)} />}
+      {showSupportModal && <SupportTicketsModal onClose={() => setShowSupportModal(false)} />}
       {editField === 'name' && (
         <EditModal title="Edit name" value={profile?.name} maxLength={50} info="Can be changed once every 12 hours" onSave={handleSaveName} onClose={() => setEditField(null)} />
       )}
