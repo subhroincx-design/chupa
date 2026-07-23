@@ -84,6 +84,12 @@ export function useGroups() {
     }
   }, [user, fetchGroups])
 
+  const leaveGroup = useCallback(async (groupId) => {
+    if (!user) return
+    await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', user.id)
+    setGroups(prev => prev.filter(g => g.id !== groupId))
+  }, [user])
+
   const joinGroup = useCallback(async (groupId) => {
     if (!user || !groupId) return
     await supabase
