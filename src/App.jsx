@@ -49,6 +49,13 @@ function LoadingScreen() {
 
 function BannedScreen() {
   const { signOut, profile, user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
@@ -73,7 +80,7 @@ function BannedScreen() {
         You cannot access messages or groups while suspended. Contact platform owner @subhro to request access.
       </p>
       <button
-        onClick={signOut}
+        onClick={handleSignOut}
         style={{
           padding: '11px 24px', fontSize: 14, fontWeight: 600,
           background: 'var(--c-danger)', color: '#fff', border: 'none',

@@ -312,6 +312,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = async () => {
+    setIsBanned(false)
     setProfile(null)
     setUser(null)
     setSession(null)
