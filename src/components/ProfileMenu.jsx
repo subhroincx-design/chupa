@@ -322,13 +322,112 @@ function SettingsModal({ user, profile, onClose }) {
   )
 }
 
+function FullEditProfileModal({ profile, user, onClose, onRefresh }) {
+  const [name, setName] = useState(profile?.name || '')
+  const [username, setUsername] = useState(profile?.username || '')
+  const [bio, setBio] = useState(profile?.bio || '')
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0]
+    if (f) {
+      if (f.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
+      setAvatarFile(f)
+      setAvatarPreview(URL.createObjectURL(f))
+    }
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const cleanName = sanitizeInput(name)
+      const cleanUsername = sanitizeInput(username)
+      const cleanBio = sanitizeInput(bio)
+
+      if (cleanName && cleanName !== profile?.name) {
+        const { data: nRes } = await supabase.rpc('update_name', { p_user_id: profile.id, p_new_name: cleanName })
+        if (nRes && !nRes.success) { setError(nRes.error); setSaving(false); return }
+      }
+
+      if (cleanUsername && cleanUsername !== profile?.username) {
+        const { data: uRes } = await supabase.rpc('update_username', { p_user_id: profile.id, p_new_username: cleanUsername })
+        if (uRes && !uRes.success) { setError(uRes.error); setSaving(false); return }
+      }
+
+      if (cleanBio !== undefined && cleanBio !== profile?.bio) {
+        await supabase.from('profiles').update({ bio: cleanBio }).eq('id', profile.id)
+      }
+
+      if (avatarFile) {
+        const ext = avatarFile.name.split('.').pop().toLowerCase()
+        const path = `${profile.id}/avatar.${ext}`
+        await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        await supabase.rpc('update_avatar', { p_user_id: profile.id, p_new_url: `${publicUrl}?v=${Date.now()}` })
+      }
+
+      await onRefresh()
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+      <form className="fade-in-scale" onSubmit={handleSave} onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 20, padding: '24px 20px', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '88vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>✏️ Edit Profile</h3>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px', background: 'var(--c-bg)', borderRadius: 14, border: '1px solid var(--c-border)' }}>
+          <Avatar name={name || profile?.name} url={avatarPreview} size={52} />
+          <label style={{ padding: '8px 14px', fontSize: 12.5, fontWeight: 700, background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', cursor: 'pointer' }}>
+            📷 Change Photo
+            <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+          </label>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--c-text-secondary)', marginBottom: 4 }}>DISPLAY NAME</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: 14, background: 'var(--c-bg)', border: '1.5px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', outline: 'none' }} />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--c-text-secondary)', marginBottom: 4 }}>USERNAME (@)</label>
+          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: 14, background: 'var(--c-bg)', border: '1.5px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', outline: 'none' }} />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--c-text-secondary)', marginBottom: 4 }}>BIO / ABOUT</label>
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Write something about yourself..." style={{ width: '100%', minHeight: 70, padding: '10px 12px', fontSize: 13.5, background: 'var(--c-bg)', border: '1.5px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', outline: 'none', resize: 'none' }} />
+        </div>
+
+        {error && <p style={{ fontSize: 12, color: 'var(--c-danger)', margin: 0 }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, padding: '11px 0', fontSize: 14, background: 'var(--c-bg)', color: 'var(--c-text-secondary)', border: '1px solid var(--c-border)', borderRadius: 10, cursor: 'pointer' }}>Cancel</button>
+          <button type="submit" disabled={saving} style={{ flex: 1, padding: '11px 0', fontSize: 14, fontWeight: 700, background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 10, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving...' : 'Save Profile'}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function ProfileMenu() {
   const { user, profile, signOut, refreshProfile, isOwner } = useAuth()
   const [open, setOpen] = useState(false)
-  const [editField, setEditField] = useState(null)
+  const [showEditProfile, setShowEditProfile] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
-  const [showAvatarUpload, setShowAvatarUpload] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showSupportModal, setShowSupportModal] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
@@ -362,31 +461,13 @@ export default function ProfileMenu() {
     setOpen(false)
   }
 
-  const handleSaveName = async (v) => {
-    const { data } = await supabase.rpc('update_name', { p_user_id: profile.id, p_new_name: v })
-    if (data && !data.success) return { error: data.error }
-    await refreshProfile(); setEditField(null); setOpen(false); return {}
-  }
-
-  const handleSaveUsername = async (v) => {
-    const { data } = await supabase.rpc('update_username', { p_user_id: profile.id, p_new_username: v })
-    if (data && !data.success) return { error: data.error }
-    await refreshProfile(); setEditField(null); setOpen(false); return {}
-  }
-
-  const handleSaveBio = async (v) => {
-    const { error } = await supabase.from('profiles').update({ bio: v }).eq('id', profile.id)
-    if (error) return { error: error.message }
-    await refreshProfile(); setEditField(null); setOpen(false); return {}
-  }
-
   const menuItemStyle = {
-    width: '100%', padding: '11px 14px',
+    width: '100%', padding: '10px 14px',
     fontSize: 13.5, textAlign: 'left',
     color: 'var(--c-text)', background: 'none',
     cursor: 'pointer', transition: 'background 100ms',
     border: 'none', display: 'flex', alignItems: 'center', gap: 10,
-    minHeight: 44, WebkitTapHighlightColor: 'transparent',
+    minHeight: 42, WebkitTapHighlightColor: 'transparent',
   }
 
   return (
@@ -412,26 +493,27 @@ export default function ProfileMenu() {
         <div
           style={{
             position: 'absolute', right: 0, top: '100%', marginTop: 8,
-            width: 230, background: 'var(--c-surface)',
-            border: '1px solid var(--c-border)', borderRadius: 14,
-            boxShadow: 'var(--shadow-lg)', zIndex: 100, overflow: 'hidden',
+            width: 235, background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)', borderRadius: 16,
+            boxShadow: 'var(--shadow-lg)', zIndex: 100, overflowY: 'auto',
+            maxHeight: 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch',
           }}
         >
           {/* Profile header */}
-          <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid var(--c-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Avatar name={profile?.name} url={profile?.avatar_url} size={40} />
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--c-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Avatar name={profile?.name} url={profile?.avatar_url} size={38} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profile?.name}
                 </p>
                 {isOwner && (
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
                     👑 OWNER
                   </span>
                 )}
               </div>
-              <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', margin: 0 }}>
+              <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: 0 }}>
                 @{profile?.username}
               </p>
             </div>
@@ -446,10 +528,20 @@ export default function ProfileMenu() {
                 <span>👑</span> <span>Admin & Ban Panel</span>
               </button>
             )}
+            <button style={{ ...menuItemStyle, fontWeight: 600 }} onClick={() => { setShowEditProfile(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>✏️</span> <span>Edit Profile & Photo</span>
+            </button>
+            <button style={menuItemStyle} onClick={() => { setShowSupportModal(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>🎧</span> <span>Support Tickets</span>
+            </button>
             <button style={menuItemStyle} onClick={() => { setShowInstallModal(true); setOpen(false) }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span>📲</span> <span>Install Chupa App</span>
+              <span>📲</span> <span>Install App</span>
             </button>
             <button style={menuItemStyle} onClick={() => { setShowSettings(true); setOpen(false) }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
@@ -460,31 +552,6 @@ export default function ProfileMenu() {
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
               <span>🔗</span> <span>{copiedHandle ? '✓ Handle copied!' : 'Copy handle'}</span>
-            </button>
-            <button style={menuItemStyle} onClick={() => { setShowAvatarUpload(true); setOpen(false) }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span>📷</span> <span>Change photo</span>
-            </button>
-            <button id="edit-name-btn" style={menuItemStyle} onClick={() => { setEditField('name'); setOpen(false) }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span>✏️</span> <span>Edit name</span>
-            </button>
-            <button id="edit-username-btn" style={menuItemStyle} onClick={() => { setEditField('username'); setOpen(false) }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}>@</span> <span>Edit username</span>
-            </button>
-            <button id="edit-bio-btn" style={menuItemStyle} onClick={() => { setEditField('bio'); setOpen(false) }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span>📝</span> <span>Edit bio / about</span>
-            </button>
-            <button id="support-tickets-btn" style={{ ...menuItemStyle, color: 'var(--c-accent)', fontWeight: 600 }} onClick={() => { setShowSupportModal(true); setOpen(false) }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-accent-light)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
-              <span>🎧</span> <span>Support Tickets</span>
             </button>
           </div>
 
@@ -509,20 +576,11 @@ export default function ProfileMenu() {
         </div>
       )}
 
+      {showEditProfile && <FullEditProfileModal profile={profile} user={user} onClose={() => setShowEditProfile(false)} onRefresh={refreshProfile} />}
       {showInstallModal && <InstallGuideModal onClose={() => setShowInstallModal(false)} />}
       {showSettings && <SettingsModal user={user} profile={profile} onClose={() => setShowSettings(false)} />}
-      {showAvatarUpload && <AvatarUpload onClose={() => setShowAvatarUpload(false)} />}
       {showAdminPanel && <AdminBanPanelModal onClose={() => setShowAdminPanel(false)} />}
       {showSupportModal && <SupportTicketsModal onClose={() => setShowSupportModal(false)} />}
-      {editField === 'name' && (
-        <EditModal title="Edit name" value={profile?.name} maxLength={50} info="Can be changed once every 12 hours" onSave={handleSaveName} onClose={() => setEditField(null)} />
-      )}
-      {editField === 'username' && (
-        <EditModal title="Edit username" value={profile?.username} maxLength={20} info="Once every 7 days. Letters, numbers, underscores." onSave={handleSaveUsername} onClose={() => setEditField(null)} />
-      )}
-      {editField === 'bio' && (
-        <EditModal title="Edit bio / about" value={profile?.bio} maxLength={160} info="Brief status or about intro for your profile" onSave={handleSaveBio} onClose={() => setEditField(null)} />
-      )}
     </div>
   )
 }
