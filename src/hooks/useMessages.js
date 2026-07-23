@@ -97,12 +97,16 @@ export function useMessages(conversationId) {
 
     // content must not be null — if image-only, use empty string
     // (DB constraint will be relaxed via SQL patch; this is a safe fallback)
-    const { error: sendError } = await supabase.from('messages').insert({
+    const payload = {
       conversation_id: conversationId,
       sender_id: user.id,
-      content: sanitized || null,
-      image_url: imageUrl,
-    })
+      content: sanitized,
+    }
+    if (imageUrl) {
+      payload.image_url = imageUrl
+    }
+
+    const { error: sendError } = await supabase.from('messages').insert(payload)
 
     if (sendError) {
       console.error('Message insert error:', sendError)
