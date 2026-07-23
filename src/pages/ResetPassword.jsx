@@ -13,13 +13,29 @@ export default function ResetPassword() {
   const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
-    // Supabase auto-exchanges the token from URL hash and fires SIGNED_IN
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+    // 1. Check existing session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setSessionReady(true)
       }
     })
-    return () => subscription.unsubscribe()
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session || event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSessionReady(true)
+      }
+    })
+
+    // 3. Guarantee form is ready within 1 second so user is never stuck
+    const timer = setTimeout(() => {
+      setSessionReady(true)
+    }, 1000)
+
+    return () => {
+      clearTimeout(timer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const inputStyle = (hasError) => ({

@@ -226,6 +226,7 @@ export function AuthProvider({ children }) {
     }
 
     const cleanUrlHash = () => {
+      if (window.location.pathname === '/reset-password') return
       if (window.location.hash || window.location.search.includes('code=')) {
         window.history.replaceState(null, document.title, window.location.pathname)
       }
