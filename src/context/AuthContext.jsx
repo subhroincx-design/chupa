@@ -157,6 +157,16 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // During password reset flow — don't redirect, let ResetPassword page handle it
+        if (event === 'PASSWORD_RECOVERY') {
+          if (!isInitialCheckDone.current) {
+            clearTimeout(safetyTimer)
+            isInitialCheckDone.current = true
+            setLoading(false)
+          }
+          return
+        }
+
         setSession(session)
         setUser(session?.user ?? null)
 

@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
-import VerifyOtp from './pages/VerifyOtp'
+import Register from './pages/Register'
+import ResetPassword from './pages/ResetPassword'
 import Setup from './pages/Setup'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -46,6 +47,8 @@ function LoadingScreen() {
   )
 }
 
+const PUBLIC_ROUTES = ['/login', '/register', '/reset-password', '/verify-otp']
+
 export default function App() {
   const { user, profile, loading, profileFetched } = useAuth()
   const navigate = useNavigate()
@@ -68,16 +71,20 @@ export default function App() {
 
     const path = location.pathname
 
+    // Allow reset-password page to work without full auth
+    if (path === '/reset-password') return
+
     if (user && profile) {
-      if (path === '/login' || path === '/verify-otp' || path === '/setup' || path === '/') {
+      if (PUBLIC_ROUTES.includes(path) || path === '/') {
         navigate('/dashboard', { replace: true })
       }
     } else if (user && !profile && profileFetched) {
-      if (path !== '/setup') {
+      // For existing users created before the new system: let them set up profile
+      if (path !== '/setup' && path !== '/reset-password') {
         navigate('/setup', { replace: true })
       }
     } else if (!user) {
-      if (path !== '/login' && path !== '/verify-otp') {
+      if (!PUBLIC_ROUTES.includes(path)) {
         navigate('/login', { replace: true })
       }
     }
@@ -89,7 +96,8 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/setup"
           element={user ? <Setup /> : <Navigate to="/login" replace />}
