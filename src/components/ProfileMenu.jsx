@@ -9,28 +9,44 @@ import InstallGuideModal from './InstallGuideModal'
 import SupportTicketsModal from './SupportTicketsModal'
 import { saveUserBio, fetchUserBio } from '../utils/bioManager'
 
-function AdminBanPanelModal({ onClose }) {
+function AdminBanPanelModal({ onClose, onStartChat }) {
   const { banUser, unbanUser } = useAuth()
-  const { query, results, searching, search } = useSearch()
   const [bannedList, setBannedList] = useState([])
+  const [allUsers, setAllUsers] = useState([])
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [activeTab, setActiveTab] = useState('all') // 'all' | 'banned'
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const loadBannedUsers = async () => {
+  const loadData = async () => {
+    setLoadingUsers(true)
     try {
-      const { data } = await supabase.from('banned_users').select('*')
-      const local = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
-      const merged = new Set([
-        ...(data || []).map(b => b.username),
-        ...local
+      // 1. Load banned users
+      const { data: bData } = await supabase.from('banned_users').select('*')
+      const localBanned = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
+      const mergedBanned = new Set([
+        ...(bData || []).map(b => b.username),
+        ...localBanned
       ])
-      setBannedList(Array.from(merged))
-    } catch {
+      setBannedList(Array.from(mergedBanned))
+
+      // 2. Load all registered users who ever joined
+      const { data: pData } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (pData) setAllUsers(pData)
+    } catch (err) {
+      console.warn('Error loading admin user list:', err)
       const local = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
       setBannedList(local)
+    } finally {
+      setLoadingUsers(false)
     }
   }
 
   useEffect(() => {
-    loadBannedUsers()
+    loadData()
   }, [])
 
   const handleBanToggle = async (userId, username) => {
@@ -44,13 +60,23 @@ function AdminBanPanelModal({ onClose }) {
     }
   }
 
+  const filteredUsers = allUsers.filter(u => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      u.name?.toLowerCase().includes(q) ||
+      u.username?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q)
+    )
+  })
+
   return (
     <div
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 400,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16, background: 'rgba(0,0,0,0.6)',
+        padding: 16, background: 'rgba(0,0,0,0.65)',
         backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
       }}
     >
@@ -58,84 +84,120 @@ function AdminBanPanelModal({ onClose }) {
         className="fade-in-scale"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 420, background: 'var(--c-surface)',
-          border: '1px solid var(--c-border)', borderRadius: 20,
+          width: '100%', maxWidth: 440, background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)', borderRadius: 22,
           padding: '22px 20px', boxShadow: 'var(--shadow-lg)',
           display: 'flex', flexDirection: 'column', maxHeight: '85vh',
         }}
       >
+        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
-              👑 Owner & Admin Panel
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
+              👑 Owner Desk & User Directory
             </h3>
             <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: '2px 0 0' }}>
-              Ban / Unban users • Suspended accounts are locked out instantly
+              All registered users on Chupa • Manage bans & accounts
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
         </div>
 
+        {/* Tab Switcher */}
+        <div style={{
+          display: 'flex', background: 'var(--c-bg)', borderRadius: 12,
+          padding: 3, marginBottom: 14, border: '1px solid var(--c-border)'
+        }}>
+          <button
+            onClick={() => setActiveTab('all')}
+            style={{
+              flex: 1, padding: '8px 0', fontSize: 12.5, fontWeight: 700,
+              borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: activeTab === 'all' ? 'var(--c-surface)' : 'transparent',
+              color: activeTab === 'all' ? 'var(--c-text)' : 'var(--c-text-tertiary)',
+              boxShadow: activeTab === 'all' ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 120ms',
+            }}
+          >
+            👥 All Users ({allUsers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('banned')}
+            style={{
+              flex: 1, padding: '8px 0', fontSize: 12.5, fontWeight: 700,
+              borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: activeTab === 'banned' ? 'var(--c-surface)' : 'transparent',
+              color: activeTab === 'banned' ? 'var(--c-danger)' : 'var(--c-text-tertiary)',
+              boxShadow: activeTab === 'banned' ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 120ms',
+            }}
+          >
+            🚫 Banned ({bannedList.length})
+          </button>
+        </div>
+
+        {/* Search input */}
         <input
           type="text"
-          value={query}
-          onChange={(e) => search(e.target.value)}
-          placeholder="Search user to ban or unban..."
-          autoFocus
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Filter users by name or username..."
           style={{
-            width: '100%', padding: '10px 14px', fontSize: 14,
+            width: '100%', padding: '10px 14px', fontSize: 13.5,
             background: 'var(--c-bg)', border: '1.5px solid var(--c-border)',
             borderRadius: 12, color: 'var(--c-text)', outline: 'none', marginBottom: 14,
           }}
         />
 
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 200 }}>
-          {query.trim() ? (
-            searching ? (
-              <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20 }}>Searching...</p>
-            ) : results.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20 }}>No users found</p>
+        {/* Content list */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 220 }}>
+          {loadingUsers ? (
+            <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 24 }}>Loading user directory...</p>
+          ) : activeTab === 'all' ? (
+            filteredUsers.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 24 }}>No registered users found.</p>
             ) : (
-              results.map((u) => {
-                const isBanned = bannedList.some(h => h.toLowerCase() === u.username.toLowerCase())
-                const isSelf = u.username.toLowerCase() === 'subhro'
+              filteredUsers.map((u) => {
+                const isBanned = bannedList.some(h => h.toLowerCase() === u.username?.toLowerCase())
+                const isSelf = u.username?.toLowerCase() === 'subhro' || u.name?.toLowerCase() === 'subhro'
 
                 return (
                   <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: 'var(--c-bg)' }}>
-                    <Avatar name={u.name} url={u.avatar_url} size={38} />
+                    <Avatar name={u.name || u.username} url={u.avatar_url} size={38} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.name} {u.username.toLowerCase() === 'subhro' && '👑'}
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--c-text)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {u.name} {isSelf && '👑'}
                       </span>
-                      <span style={{ fontSize: 12, color: 'var(--c-text-tertiary)' }}>@{u.username}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)' }}>@{u.username}</span>
                     </div>
 
                     {isSelf ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '3px 8px', borderRadius: 99 }}>
-                        Owner
+                      <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '3px 8px', borderRadius: 99 }}>
+                        OWNER
                       </span>
                     ) : (
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button
                           onClick={async () => {
                             const newName = window.prompt(`Change name for @${u.username}:`, u.name)
                             if (newName && newName.trim()) {
                               await supabase.from('profiles').update({ name: newName.trim() }).eq('id', u.id)
-                              alert(`Updated name to "${newName.trim()}"`)
+                              await loadData()
                             }
                           }}
+                          title="Edit Display Name"
                           style={{
-                            padding: '6px 10px', fontSize: 11.5, fontWeight: 600,
+                            padding: '5px 9px', fontSize: 11.5, fontWeight: 600,
                             background: 'var(--c-surface)', color: 'var(--c-text)',
                             border: '1px solid var(--c-border)', borderRadius: 99, cursor: 'pointer',
                           }}
                         >
-                          ✏️ Edit
+                          ✏️
                         </button>
                         <button
                           onClick={() => handleBanToggle(u.id, u.username)}
                           style={{
-                            padding: '6px 12px', fontSize: 12, fontWeight: 700,
+                            padding: '5px 10px', fontSize: 11.5, fontWeight: 700,
                             background: isBanned ? 'var(--c-accent)' : 'var(--c-danger)',
                             color: '#fff', border: 'none', borderRadius: 99, cursor: 'pointer',
                           }}
@@ -149,29 +211,25 @@ function AdminBanPanelModal({ onClose }) {
               })
             )
           ) : (
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-danger)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
-                Banned Users ({bannedList.length})
-              </p>
-              {bannedList.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20 }}>No users currently banned.</p>
-              ) : (
-                bannedList.map((handle) => (
-                  <div key={handle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 12, background: 'var(--c-bg)', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Avatar name={handle} size={32} />
-                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)' }}>@{handle}</span>
-                    </div>
-                    <button
-                      onClick={() => handleBanToggle(null, handle)}
-                      style={{ padding: '5px 12px', fontSize: 12, fontWeight: 700, background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 99, cursor: 'pointer' }}
-                    >
-                      Unban
-                    </button>
+            /* Banned list tab */
+            bannedList.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 24 }}>No users currently banned.</p>
+            ) : (
+              bannedList.map((handle) => (
+                <div key={handle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 12, background: 'var(--c-bg)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar name={handle} size={32} />
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)' }}>@{handle}</span>
                   </div>
-                ))
-              )}
-            </div>
+                  <button
+                    onClick={() => handleBanToggle(null, handle)}
+                    style={{ padding: '5px 12px', fontSize: 12, fontWeight: 700, background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 99, cursor: 'pointer' }}
+                  >
+                    Unban
+                  </button>
+                </div>
+              ))
+            )
           )}
         </div>
       </div>
