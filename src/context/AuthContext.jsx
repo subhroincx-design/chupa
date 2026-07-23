@@ -86,14 +86,45 @@ export function AuthProvider({ children }) {
     [onlineUserIds]
   )
 
-  const fetchProfile = async (userId) => {
+  const [isBanned, setIsBanned] = useState(false)
+
+  const checkBanStatus = useCallback(async (userId, username) => {
+    if (!userId) return
+    try {
+      const { data: bData } = await supabase
+        .from('banned_users')
+        .select('*')
+        .or(`user_id.eq.${userId},username.ilike.${username || ''}`)
+        .maybeSingle()
+
+      if (bData) {
+        setIsBanned(true)
+        return
+      }
+
+      const bannedHandles = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
+      if (username && bannedHandles.map(h => h.toLowerCase()).includes(username.toLowerCase())) {
+        setIsBanned(true)
+        return
+      }
+
+      setIsBanned(false)
+    } catch {
+      setIsBanned(false)
+    }
+  }, [])
+
+  const fetchProfile = async (userId, targetUser = null) => {
     setProfileFetched(false)
+    const currentUser = targetUser || user
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
+
+      let finalProf = data
 
       if (!error && data) {
         setProfile(data)
@@ -101,11 +132,36 @@ export function AuthProvider({ children }) {
           localStorage.setItem('chupa-profile-cache', JSON.stringify(data))
         } catch { /* ignore storage quota */ }
       } else {
-        if (error && error.code === 'PGRST116') {
+        // Auto-create profile if user metadata exists (prevents setup screen stuck bug)
+        const meta = currentUser?.user_metadata
+        if (meta?.username || meta?.name) {
+          const newProf = {
+            id: userId,
+            email: currentUser?.email || '',
+            name: meta.name || 'User',
+            username: meta.username || `user_${userId.slice(0, 6)}`,
+            name_changed_at: new Date().toISOString(),
+            username_changed_at: new Date().toISOString(),
+          }
+          const { data: createdProf } = await supabase
+            .from('profiles')
+            .upsert(newProf)
+            .select('*')
+            .maybeSingle()
+
+          finalProf = createdProf || newProf
+          setProfile(finalProf)
+          try {
+            localStorage.setItem('chupa-profile-cache', JSON.stringify(finalProf))
+          } catch {}
+        } else {
           setProfile(null)
           localStorage.removeItem('chupa-profile-cache')
         }
       }
+
+      await checkBanStatus(userId, finalProf?.username || currentUser?.user_metadata?.username)
+
     } catch (err) {
       console.error('Profile fetch exception:', err)
     } finally {
@@ -115,8 +171,41 @@ export function AuthProvider({ children }) {
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.id)
+      await fetchProfile(user.id, user)
     }
+  }
+
+  const isOwner = profile?.username?.toLowerCase() === 'subhro' || user?.user_metadata?.username?.toLowerCase() === 'subhro'
+
+  const banUser = async (targetId, targetUsername) => {
+    try {
+      await supabase.from('banned_users').upsert({
+        user_id: targetId,
+        username: targetUsername,
+        banned_at: new Date().toISOString(),
+        banned_by: user.id
+      })
+    } catch (err) {
+      console.warn('banned_users table error:', err)
+    }
+
+    const current = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
+    if (!current.includes(targetUsername)) {
+      current.push(targetUsername)
+      localStorage.setItem('chupa-banned-handles', JSON.stringify(current))
+    }
+  }
+
+  const unbanUser = async (targetId, targetUsername) => {
+    try {
+      await supabase.from('banned_users').delete().or(`user_id.eq.${targetId},username.ilike.${targetUsername}`)
+    } catch (err) {
+      console.warn('banned_users delete error:', err)
+    }
+
+    const current = JSON.parse(localStorage.getItem('chupa-banned-handles') || '[]')
+    const updated = current.filter(h => h.toLowerCase() !== targetUsername.toLowerCase())
+    localStorage.setItem('chupa-banned-handles', JSON.stringify(updated))
   }
 
   useEffect(() => {
@@ -220,6 +309,10 @@ export function AuthProvider({ children }) {
         authError,
         onlineUserIds,
         isUserOnline,
+        isBanned,
+        isOwner,
+        banUser,
+        unbanUser,
         signOut,
         refreshProfile,
       }}

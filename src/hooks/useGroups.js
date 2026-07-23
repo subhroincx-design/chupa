@@ -11,15 +11,45 @@ export function useGroups() {
     if (!user) return
     setLoading(true)
     try {
+      // 1. Try joined PostgREST query first
       const { data, error } = await supabase
         .from('group_members')
         .select('group_id, role, groups(id, name, description, avatar_url, created_by, created_at)')
         .eq('user_id', user.id)
-        .order('joined_at', { ascending: false })
 
-      if (!error && data) {
-        setGroups(data.map(row => ({ ...row.groups, myRole: row.role })))
+      if (!error && data && data.length > 0 && data.some(row => row.groups)) {
+        const groupList = data
+          .filter(row => row.groups)
+          .map(row => ({ ...row.groups, myRole: row.role }))
+        setGroups(groupList)
+        return
       }
+
+      // 2. Fallback: manual 2-step query if join embedding didn't return groups object
+      const { data: memberRows, error: memErr } = await supabase
+        .from('group_members')
+        .select('group_id, role')
+        .eq('user_id', user.id)
+
+      if (!memErr && memberRows && memberRows.length > 0) {
+        const groupIds = memberRows.map(m => m.group_id)
+        const { data: groupDetails } = await supabase
+          .from('groups')
+          .select('id, name, description, avatar_url, created_by, created_at')
+          .in('id', groupIds)
+
+        const roleMap = new Map(memberRows.map(m => [m.group_id, m.role]))
+        const groupList = (groupDetails || []).map(g => ({
+          ...g,
+          myRole: roleMap.get(g.id) || 'member',
+        }))
+        setGroups(groupList)
+      } else {
+        setGroups([])
+      }
+    } catch (err) {
+      console.error('fetchGroups exception:', err)
+      setGroups([])
     } finally {
       setLoading(false)
     }

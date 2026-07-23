@@ -63,6 +63,11 @@ export default function Setup() {
     reader.readAsDataURL(f)
   }
 
+  useEffect(() => {
+    if (user?.user_metadata?.name && !name) setName(user.user_metadata.name)
+    if (user?.user_metadata?.username && !username) setUsername(user.user_metadata.username)
+  }, [user])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     const cleanName = sanitizeInput(name)
@@ -72,7 +77,7 @@ export default function Setup() {
 
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('profiles').insert({
+      const { error } = await supabase.from('profiles').upsert({
         id: user.id, email: user.email, name: cleanName, username: cleanUsername,
         name_changed_at: new Date().toISOString(), username_changed_at: new Date().toISOString(),
       })
@@ -97,7 +102,7 @@ export default function Setup() {
       }
 
       await refreshProfile()
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
     } catch { setUsernameError('Something went wrong') }
     finally { setSubmitting(false) }
   }

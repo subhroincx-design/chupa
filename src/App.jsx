@@ -47,10 +47,49 @@ function LoadingScreen() {
   )
 }
 
+function BannedScreen() {
+  const { signOut, profile, user } = useAuth()
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'var(--c-bg)', color: 'var(--c-text)', padding: 24, textAlign: 'center',
+    }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%',
+        background: 'rgba(239, 68, 68, 0.15)', border: '2px solid var(--c-danger)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 32, marginBottom: 20,
+      }}>
+        🚫
+      </div>
+      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 10px', color: 'var(--c-danger)' }}>
+        Account Suspended
+      </h1>
+      <p style={{ fontSize: 14, color: 'var(--c-text-secondary)', maxWidth: 360, lineHeight: 1.6, margin: '0 0 10px' }}>
+        Your account (<strong style={{ color: 'var(--c-text)' }}>@{profile?.username || user?.user_metadata?.username || 'user'}</strong>) has been locked out by the platform Owner.
+      </p>
+      <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', maxWidth: 320, margin: '0 0 24px' }}>
+        You cannot access messages or groups while suspended. Contact platform owner @subhro to request access.
+      </p>
+      <button
+        onClick={signOut}
+        style={{
+          padding: '11px 24px', fontSize: 14, fontWeight: 600,
+          background: 'var(--c-danger)', color: '#fff', border: 'none',
+          borderRadius: 10, cursor: 'pointer',
+        }}
+      >
+        Sign Out
+      </button>
+    </div>
+  )
+}
+
 const PUBLIC_ROUTES = ['/login', '/register', '/reset-password', '/verify-otp']
 
 export default function App() {
-  const { user, profile, loading, sessionChecked, profileFetched } = useAuth()
+  const { user, profile, loading, sessionChecked, profileFetched, isBanned } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -66,13 +105,11 @@ export default function App() {
   }, [])
 
   // Smart Auto-redirect based on auth state
-  // IMPORTANT: only run after initial session check resolves (prevents flash-to-register)
   useEffect(() => {
-    if (loading || !sessionChecked) return
+    if (loading || !sessionChecked || isBanned) return
 
     const path = location.pathname
 
-    // Allow reset-password page to work without full auth
     if (path === '/reset-password') return
 
     if (user && profile) {
@@ -80,7 +117,6 @@ export default function App() {
         navigate('/dashboard', { replace: true })
       }
     } else if (user && !profile && profileFetched) {
-      // For existing users created before the new system: let them set up profile
       if (path !== '/setup' && path !== '/reset-password') {
         navigate('/setup', { replace: true })
       }
@@ -89,8 +125,9 @@ export default function App() {
         navigate('/login', { replace: true })
       }
     }
-  }, [user, profile, loading, sessionChecked, profileFetched, navigate, location.pathname])
+  }, [user, profile, loading, sessionChecked, profileFetched, isBanned, navigate, location.pathname])
 
+  if (isBanned) return <BannedScreen />
   if (loading || (user && !profile && !profileFetched)) return <LoadingScreen />
 
   return (
