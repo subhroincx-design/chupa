@@ -241,19 +241,15 @@ const MessageBubble = memo(function MessageBubble({
         }}
       >
         {/* Member Avatar for Group Chats */}
-        {!isSender && (
+        {!isSender && showAvatar && (
           <div style={{ width: 30, height: 30, flexShrink: 0, marginBottom: 2 }}>
-            {showAvatar ? (
-              <div
-                onClick={() => onOpenProfile?.({ id: message.sender_id, name: senderName, avatar_url: senderAvatar })}
-                style={{ cursor: 'pointer' }}
-                title={senderName}
-              >
-                <Avatar name={senderName} url={senderAvatar} size={30} />
-              </div>
-            ) : (
-              <div style={{ width: 30, height: 30 }} />
-            )}
+            <div
+              onClick={() => onOpenProfile?.({ id: message.sender_id, name: senderName, avatar_url: senderAvatar })}
+              style={{ cursor: 'pointer' }}
+              title={senderName}
+            >
+              <Avatar name={senderName} url={senderAvatar} size={30} />
+            </div>
           </div>
         )}
 

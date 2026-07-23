@@ -433,7 +433,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          padding: '10px 14px 6px',
+          padding: '10px 10px 6px',
           overscrollBehavior: 'contain',
         }}
       >
