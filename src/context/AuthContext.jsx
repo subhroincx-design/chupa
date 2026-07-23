@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { saveUserBio, fetchUserBio } from '../utils/bioManager'
 
 const AuthContext = createContext({
   user: null,
@@ -133,6 +134,16 @@ export function AuthProvider({ children }) {
       clearInterval(timer)
     }
   }, [user, profile?.username, checkBanStatus])
+
+  // Auto-sync logged in user's bio to public CDN bucket so others can view it instantly
+  useEffect(() => {
+    if (user?.id) {
+      const existingBio = user.user_metadata?.bio || localStorage.getItem(`chupa-bio-${user.id}`)
+      if (existingBio) {
+        saveUserBio(user.id, existingBio)
+      }
+    }
+  }, [user?.id, user?.user_metadata?.bio])
 
   const fetchProfile = async (userId, targetUser = null) => {
     setProfileFetched(false)
