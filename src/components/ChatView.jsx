@@ -139,7 +139,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
     } catch {
       setIsBlocked(false)
     }
-  }, [conversation?.other_user_id])
+  }, [conversation])
 
   const toggleBlock = () => {
     if (!conversation) return

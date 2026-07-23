@@ -4,41 +4,7 @@ import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 import InstallGuideModal from '../components/InstallGuideModal'
 
-function InputField({ id, label, type, value, onChange, placeholder, autoComplete, autoFocus, error }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label htmlFor={id} style={{
-        display: 'block', fontSize: 11.5, fontWeight: 600,
-        textTransform: 'uppercase', letterSpacing: '0.07em',
-        color: 'var(--c-text-secondary)', marginBottom: 7,
-      }}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          width: '100%', padding: '12px 14px', fontSize: 16,
-          background: 'var(--c-bg)',
-          border: `1.5px solid ${error ? 'var(--c-danger)' : focused ? 'var(--c-accent)' : 'var(--c-border)'}`,
-          borderRadius: 10, color: 'var(--c-text)',
-          boxShadow: focused ? '0 0 0 3px rgba(5,150,105,0.08)' : 'none',
-          transition: 'border-color 150ms, box-shadow 150ms',
-          outline: 'none',
-        }}
-      />
-      {error && <p style={{ fontSize: 12, color: 'var(--c-danger)', margin: '5px 0 0' }}>{error}</p>}
-    </div>
-  )
-}
+
 
 export default function Login() {
   const navigate = useNavigate()
