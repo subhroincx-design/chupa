@@ -1,22 +1,13 @@
 import DOMPurify from 'dompurify'
 
-const URL_REGEX = /https?:\/\/[^\s]+|www\.[^\s]+/gi
-const EMOJI_SHORTCODE_REGEX = /:[a-zA-Z0-9_+-]+:/g
-
 export function sanitizeMessage(text) {
   if (!text) return ''
   
-  // Strip ALL HTML tags
+  // Strip dangerous XSS HTML tags while preserving raw text and links
   let clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [] })
   
-  // Block emoji shortcodes
-  clean = clean.replace(EMOJI_SHORTCODE_REGEX, '')
-  
-  // Replace URLs with [link removed]
-  clean = clean.replace(URL_REGEX, '[link removed]')
-  
-  // Trim and enforce max length
-  clean = clean.trim().slice(0, 2000)
+  // Enforce clean max length without stripping links or text
+  clean = clean.trim().slice(0, 4000)
   
   return clean
 }

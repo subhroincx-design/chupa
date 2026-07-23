@@ -28,6 +28,36 @@ function DateSeparator({ label }) {
   )
 }
 
+function renderTextWithLinks(text, isSender) {
+  if (!text) return null
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
+  const parts = text.split(urlRegex)
+
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      const href = part.startsWith('www.') ? `https://${part}` : part
+      return (
+        <a
+          key={index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            color: isSender ? '#ffffff' : 'var(--c-accent)',
+            textDecoration: 'underline',
+            fontWeight: 600,
+            wordBreak: 'break-all',
+          }}
+        >
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
+}
+
 // Full-screen image lightbox
 function Lightbox({ src, onClose }) {
   useEffect(() => {
@@ -283,9 +313,9 @@ const MessageBubble = memo(function MessageBubble({
                 wordBreak: 'break-word', whiteSpace: 'pre-wrap',
                 color: isSender ? '#ffffff' : 'var(--c-text)',
                 margin: 0,
-              }}
-                ref={(el) => { if (el) el.textContent = message.content }}
-              />
+              }}>
+                {renderTextWithLinks(message.content, isSender)}
+              </p>
             </div>
           )}
 
