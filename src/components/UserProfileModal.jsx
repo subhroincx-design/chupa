@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { fetchUserBio } from '../utils/bioManager'
 import Avatar from './Avatar'
 
 export default function UserProfileModal({ user, onClose, onStartChat }) {
@@ -19,22 +20,15 @@ export default function UserProfileModal({ user, onClose, onStartChat }) {
           .eq('id', user.id)
           .maybeSingle()
 
-        const cachedBio = localStorage.getItem(`chupa-bio-${user.id}`)
-        if (data) {
-          setProfileData(prev => ({
-            ...prev,
-            ...data,
-            bio: data.bio || cachedBio || user?.user_metadata?.bio || prev?.bio || ''
-          }))
-        } else {
-          setProfileData(prev => ({
-            ...prev,
-            bio: cachedBio || user?.user_metadata?.bio || prev?.bio || ''
-          }))
-        }
+        const bioText = await fetchUserBio(user.id)
+        setProfileData(prev => ({
+          ...prev,
+          ...(data || {}),
+          bio: data?.bio || bioText || prev?.bio || ''
+        }))
       } catch (err) {
-        const cachedBio = localStorage.getItem(`chupa-bio-${user.id}`)
-        setProfileData(prev => ({ ...prev, bio: cachedBio || user?.user_metadata?.bio || prev?.bio || '' }))
+        const bioText = await fetchUserBio(user.id)
+        setProfileData(prev => ({ ...prev, bio: bioText || prev?.bio || '' }))
       } finally {
         setLoading(false)
       }

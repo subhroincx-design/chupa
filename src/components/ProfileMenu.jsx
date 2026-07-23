@@ -7,6 +7,7 @@ import Avatar from './Avatar'
 import AvatarUpload from './AvatarUpload'
 import InstallGuideModal from './InstallGuideModal'
 import SupportTicketsModal from './SupportTicketsModal'
+import { saveUserBio } from '../utils/bioManager'
 
 function AdminBanPanelModal({ onClose }) {
   const { banUser, unbanUser } = useAuth()
@@ -360,17 +361,7 @@ function FullEditProfileModal({ profile, user, onClose, onRefresh }) {
       }
 
       if (cleanBio !== undefined && cleanBio !== profile?.bio) {
-        try {
-          await supabase.auth.updateUser({ data: { bio: cleanBio } })
-        } catch { /* ignore */ }
-        try {
-          localStorage.setItem(`chupa-bio-${profile.id}`, cleanBio)
-        } catch { /* ignore */ }
-        try {
-          await supabase.from('profiles').update({ bio: cleanBio }).eq('id', profile.id)
-        } catch (dbErr) {
-          console.warn('DB bio column check fallback:', dbErr)
-        }
+        await saveUserBio(profile.id, cleanBio)
       }
 
       if (avatarFile) {
