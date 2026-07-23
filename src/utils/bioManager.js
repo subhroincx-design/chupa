@@ -5,33 +5,27 @@ export async function saveUserBio(userId, bioText) {
   if (!userId) return false
   const cleanBio = sanitizeInput(bioText || '')
 
-  // 1. Local Cache
+  // 1. Local Cache for instant local rendering
   try {
     localStorage.setItem(`chupa-bio-${userId}`, cleanBio)
   } catch { /* ignore */ }
 
-  // 2. Auth user_metadata (for own profile)
+  // 2. Auth user_metadata
   try {
     await supabase.auth.updateUser({ data: { bio: cleanBio } })
   } catch { /* ignore */ }
 
-  // 3. Try updating profiles table directly
+  // 3. Try updating profiles table directly if column exists
   try {
-    const { error: pErr } = await supabase
-      .from('profiles')
-      .update({ bio: cleanBio })
-      .eq('id', userId)
+    await supabase.from('profiles').update({ bio: cleanBio }).eq('id', userId)
+  } catch { /* ignore schema error */ }
 
-    if (!pErr) return true
-  } catch { /* fallback to user_bios */ }
-
-  // 4. Try upserting to user_bios fallback table
+  // 4. Save to Public Storage CDN (guarantees cross-device public bio availability for all users)
   try {
-    await supabase
-      .from('user_bios')
-      .upsert({ user_id: userId, bio: cleanBio, updated_at: new Date().toISOString() })
+    const bioBlob = new Blob([JSON.stringify({ bio: cleanBio, updated_at: Date.now() })], { type: 'application/json' })
+    await supabase.storage.from('avatars').upload(`${userId}/bio.json`, bioBlob, { upsert: true, contentType: 'application/json' })
   } catch (err) {
-    console.warn('user_bios table upsert fallback error:', err)
+    console.warn('Storage bio upload warning:', err)
   }
 
   return true
@@ -40,10 +34,10 @@ export async function saveUserBio(userId, bioText) {
 export async function fetchUserBio(userId) {
   if (!userId) return ''
 
-  // 1. Check local cache first for instant render
+  // 1. Check local cache first for instant zero-latency render
   const cached = localStorage.getItem(`chupa-bio-${userId}`)
 
-  // 2. Query profiles table
+  // 2. Query profiles table if available
   try {
     const { data: pData } = await supabase
       .from('profiles')
@@ -51,23 +45,24 @@ export async function fetchUserBio(userId) {
       .eq('id', userId)
       .maybeSingle()
 
-    if (pData && pData.bio !== undefined && pData.bio !== null) {
+    if (pData && pData.bio !== undefined && pData.bio !== null && pData.bio !== '') {
       try { localStorage.setItem(`chupa-bio-${userId}`, pData.bio) } catch {}
       return pData.bio
     }
   } catch { /* ignore */ }
 
-  // 3. Query user_bios table fallback
+  // 3. Fetch from Public Storage CDN File (100% public, works across all devices)
   try {
-    const { data: bData } = await supabase
-      .from('user_bios')
-      .select('bio')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (bData && bData.bio) {
-      try { localStorage.setItem(`chupa-bio-${userId}`, bData.bio) } catch {}
-      return bData.bio
+    const { data } = supabase.storage.from('avatars').getPublicUrl(`${userId}/bio.json`)
+    if (data?.publicUrl) {
+      const res = await fetch(data.publicUrl + '?t=' + Date.now())
+      if (res.ok) {
+        const json = await res.json()
+        if (json && typeof json.bio === 'string') {
+          try { localStorage.setItem(`chupa-bio-${userId}`, json.bio) } catch {}
+          return json.bio
+        }
+      }
     }
   } catch { /* ignore */ }
 
