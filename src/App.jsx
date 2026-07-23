@@ -86,7 +86,7 @@ function BannedScreen() {
   )
 }
 
-const PUBLIC_ROUTES = ['/login', '/register', '/reset-password', '/verify-otp']
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/reset-password', '/verify-otp']
 
 export default function App() {
   const { user, profile, loading, sessionChecked, profileFetched, isBanned } = useAuth()
@@ -113,15 +113,11 @@ export default function App() {
     if (path === '/reset-password') return
 
     if (user && profile) {
-      if (PUBLIC_ROUTES.includes(path) || path === '/') {
+      if (path === '/' || path === '/login' || path === '/register' || path === '/verify-otp') {
         navigate('/dashboard', { replace: true })
       }
-    } else if (user && !profile && profileFetched) {
-      if (path !== '/setup' && path !== '/reset-password') {
-        navigate('/setup', { replace: true })
-      }
     } else if (!user) {
-      if (!PUBLIC_ROUTES.includes(path)) {
+      if (path !== '/' && !PUBLIC_ROUTES.includes(path)) {
         navigate('/login', { replace: true })
       }
     }
@@ -133,6 +129,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -148,7 +145,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </ErrorBoundary>
   )

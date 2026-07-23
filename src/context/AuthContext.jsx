@@ -132,32 +132,35 @@ export function AuthProvider({ children }) {
           localStorage.setItem('chupa-profile-cache', JSON.stringify(data))
         } catch { /* ignore storage quota */ }
       } else {
-        // Auto-create profile if user metadata exists (prevents setup screen stuck bug)
+        // Auto-create/guarantee profile for any authenticated user to eliminate first-load refresh loops
         const meta = currentUser?.user_metadata
-        if (meta?.username || meta?.name) {
-          const newProf = {
-            id: userId,
-            email: currentUser?.email || '',
-            name: meta.name || 'User',
-            username: meta.username || `user_${userId.slice(0, 6)}`,
-            name_changed_at: new Date().toISOString(),
-            username_changed_at: new Date().toISOString(),
-          }
+        const fallbackName = meta?.name || currentUser?.email?.split('@')[0] || 'User'
+        const fallbackUsername = meta?.username || `user_${userId.slice(0, 6)}`
+
+        const newProf = {
+          id: userId,
+          email: currentUser?.email || '',
+          name: fallbackName,
+          username: fallbackUsername,
+          name_changed_at: new Date().toISOString(),
+          username_changed_at: new Date().toISOString(),
+        }
+
+        try {
           const { data: createdProf } = await supabase
             .from('profiles')
             .upsert(newProf)
             .select('*')
             .maybeSingle()
-
           finalProf = createdProf || newProf
-          setProfile(finalProf)
-          try {
-            localStorage.setItem('chupa-profile-cache', JSON.stringify(finalProf))
-          } catch {}
-        } else {
-          setProfile(null)
-          localStorage.removeItem('chupa-profile-cache')
+        } catch {
+          finalProf = newProf
         }
+
+        setProfile(finalProf)
+        try {
+          localStorage.setItem('chupa-profile-cache', JSON.stringify(finalProf))
+        } catch {}
       }
 
       await checkBanStatus(userId, finalProf?.username || currentUser?.user_metadata?.username)
