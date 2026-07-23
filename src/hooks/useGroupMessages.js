@@ -26,11 +26,55 @@ export function useGroupMessages(groupId) {
 
   const fetchMembers = useCallback(async () => {
     if (!groupId) return
-    const { data } = await supabase
-      .from('group_members')
-      .select('user_id, role, profiles(id, name, username, avatar_url)')
-      .eq('group_id', groupId)
-    if (data) setMembers(data.map(m => ({ ...m.profiles, role: m.role })))
+    try {
+      // 1. Try joined query first
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('user_id, role, profiles(id, name, username, avatar_url)')
+        .eq('group_id', groupId)
+
+      if (!error && data && data.length > 0 && data.some(m => m.profiles)) {
+        setMembers(data.map(m => ({
+          id: m.profiles?.id || m.user_id,
+          name: m.profiles?.name || 'Member',
+          username: m.profiles?.username || 'user',
+          avatar_url: m.profiles?.avatar_url || null,
+          role: m.role,
+        })))
+        return
+      }
+
+      // 2. Fallback: manual 2-step query if PostgREST embedding didn't populate
+      const { data: memberRows, error: memErr } = await supabase
+        .from('group_members')
+        .select('user_id, role')
+        .eq('group_id', groupId)
+
+      if (!memErr && memberRows && memberRows.length > 0) {
+        const uids = memberRows.map(m => m.user_id)
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url')
+          .in('id', uids)
+
+        const profMap = new Map((profs || []).map(p => [p.id, p]))
+        const memberList = memberRows.map(m => {
+          const p = profMap.get(m.user_id) || {}
+          return {
+            id: m.user_id,
+            name: p.name || 'Member',
+            username: p.username || 'user',
+            avatar_url: p.avatar_url || null,
+            role: m.role,
+          }
+        })
+        setMembers(memberList)
+      } else {
+        setMembers([])
+      }
+    } catch (err) {
+      console.error('Error in fetchMembers:', err)
+    }
   }, [groupId])
 
   useEffect(() => {
@@ -40,7 +84,7 @@ export function useGroupMessages(groupId) {
     fetchMembers()
   }, [fetchMessages, fetchMembers])
 
-  // Realtime
+  // Realtime messages & members
   useEffect(() => {
     if (!groupId) return
     const ch = supabase.channel(`group-msgs-${groupId}`)
@@ -59,9 +103,15 @@ export function useGroupMessages(groupId) {
       }, (payload) => {
         setMessages(prev => prev.filter(m => m.id !== payload.old.id))
       })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'group_members',
+        filter: `group_id=eq.${groupId}`,
+      }, () => {
+        fetchMembers()
+      })
       .subscribe()
     return () => supabase.removeChannel(ch)
-  }, [groupId])
+  }, [groupId, fetchMembers])
 
   const sendMessage = useCallback(async (content, imageFile) => {
     if (!groupId || !user) return false
@@ -104,5 +154,5 @@ export function useGroupMessages(groupId) {
     await supabase.from('group_messages').delete().eq('id', messageId).eq('sender_id', user.id)
   }, [user])
 
-  return { messages, loading, members, sendMessage, deleteMessage, refetch: fetchMessages }
+  return { messages, loading, members, sendMessage, deleteMessage, refetch: fetchMessages, refetchMembers: fetchMembers }
 }

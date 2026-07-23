@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useGroupMessages } from '../hooks/useGroupMessages'
 import { useAuth } from '../context/AuthContext'
+import { useSearch } from '../hooks/useSearch'
 import MessageBubble, { formatDateLabel } from './MessageBubble'
 import MessageInput from './MessageInput'
 import Avatar from './Avatar'
@@ -37,12 +38,125 @@ function groupMessagesByDate(messages) {
   return groups
 }
 
-export default function GroupView({ group, onBack, onLeaveGroup }) {
+function AddMembersModal({ group, currentMembers, onAdd, onClose, onMembersAdded }) {
+  const { query, results, searching, search } = useSearch()
+  const [addingId, setAddingId] = useState(null)
+  const [addedIds, setAddedIds] = useState([])
+
+  const currentMemberIds = new Set(currentMembers.map(m => m.id))
+
+  const handleAddUser = async (userObj) => {
+    setAddingId(userObj.id)
+    const success = await onAdd?.(group.id, [userObj.id])
+    setAddingId(null)
+    if (success !== false) {
+      setAddedIds(prev => [...prev, userObj.id])
+      onMembersAdded?.()
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 350,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+      }}
+    >
+      <div
+        className="fade-in-scale"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 380, background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)', borderRadius: 20,
+          padding: '20px', boxShadow: 'var(--shadow-lg)',
+          display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>
+            Add Members to {group?.name}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => search(e.target.value)}
+          placeholder="Search by name or @username..."
+          autoFocus
+          style={{
+            width: '100%', padding: '10px 14px', fontSize: 14,
+            background: 'var(--c-bg)', border: '1.5px solid var(--c-border)',
+            borderRadius: 12, color: 'var(--c-text)', outline: 'none', marginBottom: 14,
+          }}
+        />
+
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 160 }}>
+          {searching ? (
+            <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20, margin: 0 }}>
+              Searching...
+            </p>
+          ) : !query.trim() ? (
+            <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20, margin: 0 }}>
+              Type a name or username above to find people to add.
+            </p>
+          ) : results.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', textAlign: 'center', padding: 20, margin: 0 }}>
+              No users found matching "{query}"
+            </p>
+          ) : (
+            results.map((u) => {
+              const isAlreadyMember = currentMemberIds.has(u.id) || addedIds.includes(u.id)
+              const isAdding = addingId === u.id
+
+              return (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--c-bg)' }}>
+                  <Avatar name={u.name} url={u.avatar_url} size={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name}
+                    </span>
+                    <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)' }}>@{u.username}</span>
+                  </div>
+
+                  {isAlreadyMember ? (
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--c-text-tertiary)', padding: '4px 10px' }}>
+                      ✓ Member
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleAddUser(u)}
+                      disabled={isAdding}
+                      style={{
+                        padding: '6px 14px', fontSize: 12, fontWeight: 700,
+                        background: 'var(--c-accent)', color: '#fff',
+                        border: 'none', borderRadius: 99, cursor: isAdding ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isAdding ? 'Adding...' : '+ Add'}
+                    </button>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers }) {
   const { user } = useAuth()
-  const { messages, loading, members, sendMessage, deleteMessage } = useGroupMessages(group?.id)
+  const { messages, loading, members, sendMessage, deleteMessage, refetchMembers } = useGroupMessages(group?.id)
   const [replyingTo, setReplyingTo] = useState(null)
   const [showOptions, setShowOptions] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false)
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
@@ -133,10 +247,16 @@ export default function GroupView({ group, onBack, onLeaveGroup }) {
             overflow: 'hidden', minWidth: 160,
           }}>
             <button
-              onClick={() => { setShowMembersModal(true); setShowOptions(false) }}
+              onClick={() => { setShowAddMembersModal(true); setShowOptions(false) }}
               style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer' }}
             >
-              👥 Group members
+              ➕ Add members
+            </button>
+            <button
+              onClick={() => { setShowMembersModal(true); setShowOptions(false) }}
+              style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', borderTop: '1px solid var(--c-border)' }}
+            >
+              👥 Group members ({members.length})
             </button>
             <button
               onClick={() => {
@@ -228,7 +348,19 @@ export default function GroupView({ group, onBack, onLeaveGroup }) {
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text)', margin: 0 }}>
                 Group Members ({members.length})
               </h3>
-              <button onClick={() => setShowMembersModal(false)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => { setShowAddMembersModal(true); setShowMembersModal(false) }}
+                  style={{
+                    fontSize: 12, fontWeight: 600, color: 'var(--c-accent)',
+                    background: 'var(--c-accent-light)', border: 'none',
+                    padding: '4px 10px', borderRadius: 99, cursor: 'pointer',
+                  }}
+                >
+                  + Add
+                </button>
+                <button onClick={() => setShowMembersModal(false)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
+              </div>
             </div>
             {group.description && (
               <p style={{ fontSize: 12.5, color: 'var(--c-text-secondary)', marginBottom: 14, background: 'var(--c-bg)', padding: '8px 12px', borderRadius: 8 }}>
@@ -253,6 +385,17 @@ export default function GroupView({ group, onBack, onLeaveGroup }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Members Modal */}
+      {showAddMembersModal && (
+        <AddMembersModal
+          group={group}
+          currentMembers={members}
+          onAdd={onAddMembers}
+          onMembersAdded={refetchMembers}
+          onClose={() => setShowAddMembersModal(false)}
+        />
       )}
     </div>
   )

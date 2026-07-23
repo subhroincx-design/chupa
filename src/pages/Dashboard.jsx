@@ -13,7 +13,7 @@ import CreateGroupModal from '../components/CreateGroupModal'
 export default function Dashboard() {
   const { user } = useAuth()
   const { conversations, loading: convsLoading, error: convsError, deleteConversation } = useConversations()
-  const { groups, createGroup, leaveGroup, joinGroup } = useGroups()
+  const { groups, createGroup, leaveGroup, joinGroup, addMembersToGroup } = useGroups()
   const { query, results, groupResults, searching, search, clearSearch } = useSearch()
 
   const [activeTab, setActiveTab] = useState('chats') // 'chats' | 'groups'
@@ -254,7 +254,7 @@ export default function Dashboard() {
           <ChatView conversation={activeConversation} onBack={handleBack} onDeleteChat={handleDeleteChat} />
         )}
         {mobileView === 'group' && (
-          <GroupView group={activeGroup} onBack={handleBack} onLeaveGroup={handleLeaveGroup} />
+          <GroupView group={activeGroup} onBack={handleBack} onLeaveGroup={handleLeaveGroup} onAddMembers={addMembersToGroup} />
         )}
         {showCreateGroup && (
           <CreateGroupModal
@@ -284,7 +284,7 @@ export default function Dashboard() {
       <ConversationList {...sharedListProps} />
 
       {activeTab === 'groups' || activeGroup ? (
-        <GroupView group={activeGroup} onLeaveGroup={handleLeaveGroup} />
+        <GroupView group={activeGroup} onLeaveGroup={handleLeaveGroup} onAddMembers={addMembersToGroup} />
       ) : (
         <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
       )}

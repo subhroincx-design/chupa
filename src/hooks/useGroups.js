@@ -122,6 +122,30 @@ export function useGroups() {
     }
   }, [user, fetchGroups])
 
+  const addMembersToGroup = useCallback(async (groupId, userIds) => {
+    if (!user || !groupId || !userIds?.length) return false
+    try {
+      const rows = userIds.map(uid => ({
+        group_id: groupId,
+        user_id: uid,
+        role: 'member'
+      }))
+      const { error } = await supabase
+        .from('group_members')
+        .upsert(rows, { onConflict: 'group_id,user_id' })
+
+      if (error) {
+        console.error('Error adding members to group:', error)
+        return false
+      }
+      await fetchGroups()
+      return true
+    } catch (err) {
+      console.error('addMembersToGroup exception:', err)
+      return false
+    }
+  }, [user, fetchGroups])
+
   const searchAllGroups = useCallback(async (searchQuery) => {
     if (!searchQuery?.trim()) return []
     const { data } = await supabase
@@ -132,5 +156,5 @@ export function useGroups() {
     return data || []
   }, [])
 
-  return { groups, loading, fetchGroups, createGroup, leaveGroup, joinGroup, searchAllGroups }
+  return { groups, loading, fetchGroups, createGroup, leaveGroup, joinGroup, addMembersToGroup, searchAllGroups }
 }
