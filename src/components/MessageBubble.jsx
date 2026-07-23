@@ -262,8 +262,8 @@ const MessageBubble = memo(function MessageBubble({
         {/* Bubble Container */}
         <div
           ref={bubbleRef}
-          onDoubleClick={() => onReply?.({ message, senderName })}
-          title="Double-click to reply"
+          onClick={() => onReply?.({ message, senderName })}
+          title="Click to reply"
           style={{
             maxWidth: hasImage ? '72%' : '75%',
             borderRadius,
@@ -271,6 +271,7 @@ const MessageBubble = memo(function MessageBubble({
             border: isSender ? 'none' : '1px solid var(--c-border)',
             boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
             position: 'relative',
+            cursor: 'pointer',
           }}
         >
           {/* Group Sender Header */}
@@ -357,16 +358,27 @@ const MessageBubble = memo(function MessageBubble({
               borderRadius: 12, boxShadow: 'var(--shadow-lg)',
               zIndex: 200, padding: '4px 0', minWidth: 160, overflow: 'hidden',
             }}>
-              <button onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
-                style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
-                ↩ Reply
+              <button
+                onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
+                style={{
+                  width: 'calc(100% - 12px)',
+                  margin: '4px 6px',
+                  padding: '9px 12px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #059669, #10b981)',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 3px 10px rgba(5, 150, 105, 0.3)',
+                }}
+              >
+                <span style={{ fontSize: 14 }}>↩</span> Reply to message
               </button>
-              {hasText && (
-                <button onClick={handleCopy}
-                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
-                  {copied ? '✓ Copied' : '📋 Copy text'}
-                </button>
-              )}
               {hasImage && (
                 <button onClick={() => { setLightbox(true); setShowMenu(false) }}
                   style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
