@@ -106,13 +106,27 @@ export function useMessages(conversationId) {
       payload.image_url = imageUrl
     }
 
-    const { error: sendError } = await supabase.from('messages').insert(payload)
+    const { data: insertedMsg, error: sendError } = await supabase
+      .from('messages')
+      .insert(payload)
+      .select()
+      .single()
 
     if (sendError) {
       console.error('Message insert error:', sendError)
       setError(sendError.message)
       return false
     }
+
+    // Optimistically add to local state so it shows instantly
+    // (realtime will also fire and dedup via the id check)
+    if (insertedMsg) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === insertedMsg.id)) return prev
+        return [...prev, insertedMsg]
+      })
+    }
+
     setError(null)
     return true
   }, [conversationId, user])

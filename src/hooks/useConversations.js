@@ -162,32 +162,27 @@ export function useConversations() {
     return () => { isMounted.current = false }
   }, [user, fetchConversations])
 
-  // Subscribe to realtime message insertions to update conversation list & trigger native notifications
+  // Subscribe to realtime events to update conversation list & trigger notifications
   useEffect(() => {
     if (!user) return
 
     const channel = supabase
       .channel('conversation-updates')
+      // Listen for new messages → update last_message preview
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
+        { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new
 
           setConversations((prev) => {
             const idx = prev.findIndex((c) => c.conversation_id === newMsg.conversation_id)
             if (idx !== -1) {
+              // Existing conversation — update last message preview
               const matchedConv = prev[idx]
-
-              // Trigger native Android & Web notification if message is from another user
               if (newMsg.sender_id !== user.id) {
                 sendLocalNotification(matchedConv.other_user_name || 'Chupa', newMsg.content)
               }
-
               const updatedConv = {
                 ...matchedConv,
                 last_message: newMsg.content || null,
@@ -199,9 +194,25 @@ export function useConversations() {
               globalConversationsCache = updatedList
               return updatedList
             }
+            // Conversation not in list yet — do a full refresh to get it
             fetchConversations(false)
             return prev
           })
+        }
+      )
+      // Listen for new conversations (when this user starts one, ensure it appears)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversations' },
+        (payload) => {
+          const c = payload.new
+          const isParticipant =
+            c.participant_1 === user.id || c.participant_2 === user.id ||
+            c.user_a === user.id || c.user_b === user.id
+          if (isParticipant) {
+            // Small delay to let the DB settle before refetching
+            setTimeout(() => fetchConversations(false), 300)
+          }
         }
       )
       .subscribe()
