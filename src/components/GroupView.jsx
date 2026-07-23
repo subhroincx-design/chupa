@@ -338,8 +338,10 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers, o
       {/* Input */}
       <MessageInput
         onSend={sendMessage}
+        disabled={loading}
         replyingTo={replyingTo}
         onCancelReply={() => setReplyingTo(null)}
+        members={members}
       />
 
       {/* Members Modal */}

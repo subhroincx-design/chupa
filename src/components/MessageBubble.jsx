@@ -35,10 +35,11 @@ function DateSeparator({ label }) {
 
 function renderTextWithLinks(text, isSender) {
   if (!text) return null
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
-  const parts = text.split(urlRegex)
+  const regex = /(https?:\/\/[^\s]+|www\.[^\s]+|@\w+)/gi
+  const parts = text.split(regex)
   return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
+    if (!part) return null
+    if (part.startsWith('http') || part.startsWith('www.')) {
       const href = part.startsWith('www.') ? `https://${part}` : part
       return (
         <a
@@ -56,6 +57,22 @@ function renderTextWithLinks(text, isSender) {
         >
           {part}
         </a>
+      )
+    }
+    if (part.startsWith('@') && part.length > 1) {
+      return (
+        <span
+          key={index}
+          style={{
+            color: isSender ? '#fff' : 'var(--c-accent)',
+            fontWeight: 700,
+            backgroundColor: isSender ? 'rgba(255,255,255,0.25)' : 'rgba(16,185,129,0.12)',
+            padding: '2px 5px',
+            borderRadius: 6,
+          }}
+        >
+          {part}
+        </span>
       )
     }
     return part

@@ -1,15 +1,20 @@
 import { useState, useRef, useEffect } from 'react'
 import { sanitizeMessage } from '../utils/sanitize'
 
-export default function MessageInput({ onSend, disabled, replyingTo, onCancelReply, onTyping }) {
+export default function MessageInput({ onSend, disabled, replyingTo, onCancelReply, onTyping, members }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [imageError, setImageError] = useState('')
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
+  const [mentionState, setMentionState] = useState({ active: false, query: '', index: 0, cursor: 0 })
   const inputRef = useRef(null)
   const fileRef = useRef(null)
+
+  const filteredMembers = mentionState.active && members
+    ? members.filter(m => m.username?.toLowerCase().includes(mentionState.query.toLowerCase()) || m.name?.toLowerCase().includes(mentionState.query.toLowerCase()))
+    : []
 
   useEffect(() => {
     if (!window.visualViewport) return
@@ -76,7 +81,46 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
     setSending(false)
   }
 
+  const insertMention = (username) => {
+    const textBeforeMention = text.slice(0, mentionState.cursor - mentionState.query.length - 1)
+    const textAfterMention = text.slice(mentionState.cursor)
+    const newText = textBeforeMention + `@${username} ` + textAfterMention
+    setText(newText)
+    setMentionState({ active: false, query: '', index: 0, cursor: 0 })
+    
+    // Focus and set cursor position after a slight delay
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus()
+        const newCursorPos = textBeforeMention.length + username.length + 2
+        inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
+      }
+    }, 10)
+  }
+
   const handleKeyDown = (e) => {
+    if (mentionState.active && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionState(prev => ({ ...prev, index: (prev.index + 1) % filteredMembers.length }))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionState(prev => ({ ...prev, index: (prev.index - 1 + filteredMembers.length) % filteredMembers.length }))
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        insertMention(filteredMembers[mentionState.index].username)
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionState(prev => ({ ...prev, active: false }))
+        return
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
@@ -84,8 +128,21 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
   }
 
   const handleChange = (e) => {
-    setText(e.target.value.slice(0, 2000))
+    const val = e.target.value
+    setText(val.slice(0, 2000))
     onTyping?.()
+
+    if (members && members.length > 0) {
+      const cursor = e.target.selectionStart
+      const textBeforeCursor = val.slice(0, cursor)
+      const match = textBeforeCursor.match(/(?:^|\s)@(\w*)$/)
+      
+      if (match) {
+        setMentionState(prev => ({ active: true, query: match[1], index: 0, cursor: cursor }))
+      } else {
+        setMentionState(prev => ({ ...prev, active: false }))
+      }
+    }
   }
 
   const remaining = 2000 - text.length
@@ -93,11 +150,50 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
 
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column',
+      display: 'flex', flexDirection: 'column', position: 'relative',
       borderTop: '1px solid var(--c-border)',
       background: 'var(--c-surface)',
       flexShrink: 0,
     }}>
+      {/* Mention Popup */}
+      {mentionState.active && filteredMembers.length > 0 && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: 14, right: 14, marginBottom: 8,
+          background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+          borderRadius: 12, boxShadow: 'var(--shadow-lg)',
+          maxHeight: 160, overflowY: 'auto', zIndex: 100,
+          display: 'flex', flexDirection: 'column', padding: '4px 0'
+        }}>
+          {filteredMembers.map((m, i) => (
+            <button
+              key={m.id}
+              onClick={(e) => { e.preventDefault(); insertMention(m.username) }}
+              onMouseDown={(e) => e.preventDefault()} // prevent blur
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
+                background: i === mentionState.index ? 'var(--c-surface-hover)' : 'transparent',
+                border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--c-bg)', overflow: 'hidden', flexShrink: 0 }}>
+                {m.avatar_url ? (
+                  <img src={m.avatar_url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="" />
+                ) : (
+                  <div style={{width:'100%',height:'100%',background:'var(--c-accent)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:12,fontWeight:'bold'}}>
+                    {m.name?.[0]?.toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--c-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{m.username}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Reply bar */}
       {replyingTo && (
         <div style={{
