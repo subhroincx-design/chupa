@@ -18,11 +18,23 @@ export default function UserProfileModal({ user, onClose, onStartChat }) {
           .select('*')
           .eq('id', user.id)
           .maybeSingle()
+
+        const cachedBio = localStorage.getItem(`chupa-bio-${user.id}`)
         if (data) {
-          setProfileData(prev => ({ ...prev, ...data }))
+          setProfileData(prev => ({
+            ...prev,
+            ...data,
+            bio: data.bio || cachedBio || user?.user_metadata?.bio || prev?.bio || ''
+          }))
+        } else {
+          setProfileData(prev => ({
+            ...prev,
+            bio: cachedBio || user?.user_metadata?.bio || prev?.bio || ''
+          }))
         }
       } catch (err) {
-        console.warn('Error loading user profile details:', err)
+        const cachedBio = localStorage.getItem(`chupa-bio-${user.id}`)
+        setProfileData(prev => ({ ...prev, bio: cachedBio || user?.user_metadata?.bio || prev?.bio || '' }))
       } finally {
         setLoading(false)
       }
