@@ -296,8 +296,13 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers })
               <div key={msg.id}>
                 {/* Show sender name for group messages if not sender */}
                 {!isSender && !isConsecutive && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', margin: '8px 0 2px 4px' }}>
-                    {msg.sender_name || 'Member'}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent)', margin: '8px 0 2px 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span>{msg.sender_name || 'Member'}</span>
+                    {(msg.sender_name?.toLowerCase() === 'subhro' || msg.sender_name?.toLowerCase()?.includes('subhro')) && (
+                      <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99 }}>
+                        👑 OWNER
+                      </span>
+                    )}
                   </div>
                 )}
                 <MessageBubble
@@ -372,7 +377,14 @@ export default function GroupView({ group, onBack, onLeaveGroup, onAddMembers })
                 <div key={m.id || Math.random()} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={m.name} url={m.avatar_url} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', display: 'block' }}>{m.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', display: 'block' }}>{m.name}</span>
+                      {(m.username?.toLowerCase() === 'subhro' || m.name?.toLowerCase() === 'subhro') && (
+                        <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                          👑 OWNER
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)' }}>@{m.username}</span>
                   </div>
                   {m.role === 'admin' && (

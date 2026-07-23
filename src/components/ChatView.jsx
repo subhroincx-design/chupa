@@ -301,9 +301,16 @@ export default function ChatView({ conversation, onBack, onDeleteChat }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
-            {conversation.other_user_name}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+              {conversation.other_user_name}
+            </p>
+            {(conversation.other_user_username?.toLowerCase() === 'subhro' || conversation.other_user_name?.toLowerCase() === 'subhro') && (
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+                👑 OWNER
+              </span>
+            )}
+          </div>
           <p style={{
             fontSize: 11.5,
             color: isOtherTyping ? 'var(--c-accent)' : isOtherOnline ? 'var(--c-accent)' : 'var(--c-text-tertiary)',

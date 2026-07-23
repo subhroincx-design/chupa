@@ -18,9 +18,16 @@ export default function SearchResult({ user, onClick }) {
     >
       <Avatar name={user.name || user.username} url={user.avatar_url} size={38} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {user.name}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user.name}
+          </p>
+          {(user.username?.toLowerCase() === 'subhro' || user.name?.toLowerCase() === 'subhro') && (
+            <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--c-accent)', background: 'var(--c-accent-light)', padding: '1px 5px', borderRadius: 99, flexShrink: 0 }}>
+              👑 OWNER
+            </span>
+          )}
+        </div>
         <p style={{ fontSize: 12, color: 'var(--c-text-tertiary)', margin: 0 }}>
           @{user.username}
         </p>
