@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import SearchBar from './SearchBar'
 import SearchResult from './SearchResult'
 import ProfileMenu from './ProfileMenu'
+import InstallGuideModal from './InstallGuideModal'
 import Logo from './Logo'
 import Avatar from './Avatar'
 
@@ -136,6 +137,7 @@ export default function ConversationList({
 }) {
   const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
+  const [showInstallModal, setShowInstallModal] = useState(false)
 
   const [pinnedIds, setPinnedIds] = useState(() => {
     try {
@@ -191,7 +193,21 @@ export default function ConversationList({
             Chupa
           </h1>
         </div>
-        <ProfileMenu />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => setShowInstallModal(true)}
+            title="Install Chupa App"
+            style={{
+              padding: '5px 10px', fontSize: 12, fontWeight: 700,
+              color: 'var(--c-accent)', background: 'var(--c-accent-light)',
+              border: 'none', borderRadius: 99, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <span>📲</span> <span>Install App</span>
+          </button>
+          <ProfileMenu />
+        </div>
       </div>
 
       {/* Tabs: Chats / Groups */}
@@ -345,6 +361,8 @@ export default function ConversationList({
           </div>
         )}
       </div>
+
+      {showInstallModal && <InstallGuideModal onClose={() => setShowInstallModal(false)} />}
     </div>
   )
 }

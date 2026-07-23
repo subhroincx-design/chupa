@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { sanitizeInput } from '../utils/sanitize'
 import Avatar from './Avatar'
 import AvatarUpload from './AvatarUpload'
+import InstallGuideModal from './InstallGuideModal'
 
 function EditModal({ title, value, onSave, onClose, maxLength, info }) {
   const [input, setInput] = useState(value || '')
@@ -154,6 +155,7 @@ export default function ProfileMenu() {
   const [open, setOpen] = useState(false)
   const [editField, setEditField] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState(false)
   const [showAvatarUpload, setShowAvatarUpload] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
   const menuRef = useRef(null)
@@ -250,6 +252,11 @@ export default function ProfileMenu() {
 
           {/* Actions */}
           <div style={{ padding: '4px 0' }}>
+            <button style={menuItemStyle} onClick={() => { setShowInstallModal(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>📲</span> <span>Install Chupa App</span>
+            </button>
             <button style={menuItemStyle} onClick={() => { setShowSettings(true); setOpen(false) }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
@@ -298,6 +305,7 @@ export default function ProfileMenu() {
         </div>
       )}
 
+      {showInstallModal && <InstallGuideModal onClose={() => setShowInstallModal(false)} />}
       {showSettings && <SettingsModal user={user} profile={profile} onClose={() => setShowSettings(false)} />}
       {showAvatarUpload && <AvatarUpload onClose={() => setShowAvatarUpload(false)} />}
       {editField === 'name' && (
