@@ -13,8 +13,8 @@ import CreateGroupModal from '../components/CreateGroupModal'
 export default function Dashboard() {
   const { user } = useAuth()
   const { conversations, loading: convsLoading, error: convsError, deleteConversation } = useConversations()
-  const { groups, createGroup, leaveGroup } = useGroups()
-  const { query, results, searching, search, clearSearch } = useSearch()
+  const { groups, createGroup, leaveGroup, joinGroup } = useGroups()
+  const { query, results, groupResults, searching, search, clearSearch } = useSearch()
 
   const [activeTab, setActiveTab] = useState('chats') // 'chats' | 'groups'
   const [activeConversation, setActiveConversation] = useState(null)
@@ -204,6 +204,24 @@ export default function Dashboard() {
     [user, clearSearch]
   )
 
+  const handleSelectGroupSearchResult = useCallback(
+    async (group) => {
+      try {
+        await joinGroup(group.id)
+        setActiveGroup(group)
+        setActiveConversation(null)
+        setMobileView('group')
+        clearSearch()
+        if (window.innerWidth < 768) {
+          window.history.pushState({ chat: true }, '')
+        }
+      } catch (err) {
+        console.error('Failed to join group:', err)
+      }
+    },
+    [joinGroup, clearSearch]
+  )
+
   const sharedListProps = {
     conversations,
     activeId: activeConversation?.conversation_id,
@@ -216,11 +234,13 @@ export default function Dashboard() {
     onTabChange: (t) => { setActiveTab(t); clearSearch() },
     onDeleteChat: handleDeleteChat,
     searchQuery: query,
-    onSearch: search,
+    onSearch: (q) => search(q, activeTab),
     onClearSearch: clearSearch,
     searchResults: results,
+    groupSearchResults: groupResults,
     searching,
     onSearchResultClick: handleSearchResultClick,
+    onGroupSearchResultClick: handleSelectGroupSearchResult,
     loading: convsLoading,
     error: convsError,
   }

@@ -134,7 +134,7 @@ export default function ConversationList({
   groups = [], activeGroupId, onSelectGroup, onCreateGroupClick,
   activeTab = 'chats', onTabChange,
   searchQuery, onSearch, onClearSearch,
-  searchResults, searching, onSearchResultClick, loading,
+  searchResults = [], groupSearchResults = [], searching, onSearchResultClick, onGroupSearchResultClick, loading, error,
 }) {
   const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
@@ -232,7 +232,12 @@ export default function ConversationList({
 
       {/* Search Bar */}
       <div style={{ flexShrink: 0 }}>
-        <SearchBar value={searchQuery} onChange={onSearch} onClear={onClearSearch} />
+        <SearchBar
+          value={searchQuery}
+          onChange={onSearch}
+          onClear={onClearSearch}
+          placeholder={activeTab === 'groups' ? 'Search groups...' : 'Search people...'}
+        />
       </div>
 
       {/* Search results */}
@@ -242,12 +247,47 @@ export default function ConversationList({
             <div style={{ padding: '4px 0' }}>
               {[1, 2].map((i) => <SkeletonConversation key={i} />)}
             </div>
+          ) : activeTab === 'groups' ? (
+            groupSearchResults.length > 0 ? (
+              <div style={{ maxHeight: 220, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                {groupSearchResults.map((g) => (
+                  <div
+                    key={g.id}
+                    onClick={() => onGroupSearchResultClick?.(g)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                      cursor: 'pointer', borderBottom: '1px solid var(--c-border)',
+                      transition: 'background 120ms',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Avatar name={g.name} url={g.avatar_url} size={38} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {g.name}
+                      </p>
+                      <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {g.description || 'Public Group'}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-accent)' }}>
+                      Open →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ padding: '14px 16px', fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>
+                No groups found
+              </p>
+            )
           ) : searchResults.length > 0 ? (
             <div style={{ maxHeight: 220, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {searchResults.map((u) => <SearchResult key={u.id} user={u} onClick={onSearchResultClick} />)}
             </div>
           ) : (
-            <p style={{ padding: '14px 16px', fontSize: 13, color: 'var(--c-text-tertiary)' }}>
+            <p style={{ padding: '14px 16px', fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>
               No users found
             </p>
           )}

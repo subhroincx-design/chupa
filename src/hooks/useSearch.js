@@ -6,12 +6,13 @@ export function useSearch() {
   const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
+  const [groupResults, setGroupResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState(null)
   const timeoutRef = useRef(null)
 
   const search = useCallback(
-    (searchQuery) => {
+    (searchQuery, searchType = 'chats') => {
       setQuery(searchQuery)
 
       if (timeoutRef.current) {
@@ -20,6 +21,7 @@ export function useSearch() {
 
       if (!searchQuery.trim()) {
         setResults([])
+        setGroupResults([])
         setSearching(false)
         return
       }
@@ -28,24 +30,41 @@ export function useSearch() {
 
       timeoutRef.current = setTimeout(async () => {
         try {
-          const { data, error: searchError } = await supabase.rpc(
-            'search_users',
-            {
-              p_query: searchQuery.trim(),
-              p_current_user_id: user.id,
-            }
-          )
+          if (searchType === 'groups') {
+            const { data, error: groupErr } = await supabase
+              .from('groups')
+              .select('*')
+              .ilike('name', `%${searchQuery.trim()}%`)
+              .limit(20)
 
-          if (searchError) {
-            setError(searchError.message)
-            setResults([])
+            if (groupErr) {
+              setError(groupErr.message)
+              setGroupResults([])
+            } else {
+              setGroupResults(data || [])
+              setError(null)
+            }
           } else {
-            setResults(data || [])
-            setError(null)
+            const { data, error: searchError } = await supabase.rpc(
+              'search_users',
+              {
+                p_query: searchQuery.trim(),
+                p_current_user_id: user.id,
+              }
+            )
+
+            if (searchError) {
+              setError(searchError.message)
+              setResults([])
+            } else {
+              setResults(data || [])
+              setError(null)
+            }
           }
         } catch (err) {
           setError(err.message)
           setResults([])
+          setGroupResults([])
         } finally {
           setSearching(false)
         }
@@ -57,6 +76,7 @@ export function useSearch() {
   const clearSearch = useCallback(() => {
     setQuery('')
     setResults([])
+    setGroupResults([])
     setSearching(false)
     setError(null)
     if (timeoutRef.current) {
@@ -64,5 +84,5 @@ export function useSearch() {
     }
   }, [])
 
-  return { query, results, searching, error, search, clearSearch }
+  return { query, results, groupResults, searching, error, search, clearSearch }
 }

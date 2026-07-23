@@ -84,11 +84,23 @@ export function useGroups() {
     }
   }, [user, fetchGroups])
 
-  const leaveGroup = useCallback(async (groupId) => {
-    if (!user) return
-    await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', user.id)
-    setGroups(prev => prev.filter(g => g.id !== groupId))
-  }, [user])
+  const joinGroup = useCallback(async (groupId) => {
+    if (!user || !groupId) return
+    await supabase
+      .from('group_members')
+      .upsert({ group_id: groupId, user_id: user.id, role: 'member' }, { onConflict: 'group_id,user_id' })
+    await fetchGroups()
+  }, [user, fetchGroups])
 
-  return { groups, loading, fetchGroups, createGroup, leaveGroup }
+  const searchAllGroups = useCallback(async (searchQuery) => {
+    if (!searchQuery?.trim()) return []
+    const { data } = await supabase
+      .from('groups')
+      .select('*')
+      .ilike('name', `%${searchQuery.trim()}%`)
+      .limit(20)
+    return data || []
+  }, [])
+
+  return { groups, loading, fetchGroups, createGroup, leaveGroup, joinGroup, searchAllGroups }
 }

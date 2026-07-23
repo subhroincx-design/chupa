@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export default function SearchBar({ value, onChange, onClear }) {
+export default function SearchBar({ value, onChange, onClear, placeholder = 'Search people...' }) {
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function SearchBar({ value, onChange, onClear }) {
           type="search"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Search people..."
+          placeholder={placeholder}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="none"
