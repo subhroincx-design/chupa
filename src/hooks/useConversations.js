@@ -185,6 +185,12 @@ export function useConversations() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new
+          
+          // DO NOT process messages from users we have blocked
+          const blockedUsers = JSON.parse(localStorage.getItem(`chupa-block-list-${user.id}`) || '[]')
+          if (newMsg.sender_id !== user.id && blockedUsers.includes(newMsg.sender_id)) {
+            return
+          }
 
           setConversations((prev) => {
             const idx = prev.findIndex((c) => c.conversation_id === newMsg.conversation_id)

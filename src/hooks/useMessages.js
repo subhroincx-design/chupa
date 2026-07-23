@@ -20,25 +20,38 @@ export function useMessages(conversationId) {
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
-      if (fetchError) setError(fetchError.message)
-      else setMessages(data || [])
+
+      if (fetchError) {
+        setError(fetchError.message)
+      } else {
+        // Filter out messages sent by people we have locally blocked
+        const blockedUsers = JSON.parse(localStorage.getItem(`chupa-block-list-${user?.id}`) || '[]')
+        const filtered = (data || []).filter(m => m.sender_id === user?.id || !blockedUsers.includes(m.sender_id))
+        setMessages(filtered)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [conversationId])
+  }, [conversationId, user])
 
   useEffect(() => { fetchMessages() }, [fetchMessages])
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!conversationId || !user) return
     const channel = supabase
       .channel(`messages-${conversationId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
       }, (payload) => {
+        // If message is from a blocked user, silently ignore it
+        const blockedUsers = JSON.parse(localStorage.getItem(`chupa-block-list-${user.id}`) || '[]')
+        if (payload.new.sender_id !== user.id && blockedUsers.includes(payload.new.sender_id)) {
+          return
+        }
+
         setMessages(prev => {
           if (prev.some(m => m.id === payload.new.id)) return prev
           return [...prev, payload.new]

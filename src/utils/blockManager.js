@@ -8,21 +8,24 @@ export async function getBlockedUsers(userId) {
 
   // 1. Try public URL fetch (bypasses RLS & cross-user auth limits)
   try {
-    const { data: publicUrlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(`${userId}/blocked.json`)
+    for (const ext of ['json', 'txt']) {
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(`${userId}/blocked.${ext}`)
 
-    if (publicUrlData?.publicUrl) {
-      const res = await fetch(`${publicUrlData.publicUrl}?t=${Date.now()}`)
-      if (res.ok) {
-        const list = await res.json()
-        if (Array.isArray(list)) {
-          localStorage.setItem(cacheKey, JSON.stringify(list))
-          return list
+      if (publicUrlData?.publicUrl) {
+        const res = await fetch(`${publicUrlData.publicUrl}?t=${Date.now()}`)
+        if (res.ok) {
+          const list = await res.json()
+          if (Array.isArray(list)) {
+            localStorage.setItem(cacheKey, JSON.stringify(list))
+            return list
+          }
+        } else if (res.status === 404 && ext === 'txt') {
+          // If both .json and .txt return 404, there's no block file
+          localStorage.setItem(cacheKey, JSON.stringify([]))
+          return []
         }
-      } else if (res.status === 404) {
-        localStorage.setItem(cacheKey, JSON.stringify([]))
-        return []
       }
     }
   } catch (err) {
@@ -31,16 +34,18 @@ export async function getBlockedUsers(userId) {
 
   // 2. Storage download fallback
   try {
-    const { data } = await supabase.storage
-      .from('avatars')
-      .download(`${userId}/blocked.json`)
+    for (const ext of ['json', 'txt']) {
+      const { data } = await supabase.storage
+        .from('avatars')
+        .download(`${userId}/blocked.${ext}`)
 
-    if (data) {
-      const text = await data.text()
-      const list = JSON.parse(text)
-      if (Array.isArray(list)) {
-        localStorage.setItem(cacheKey, JSON.stringify(list))
-        return list
+      if (data) {
+        const text = await data.text()
+        const list = JSON.parse(text)
+        if (Array.isArray(list)) {
+          localStorage.setItem(cacheKey, JSON.stringify(list))
+          return list
+        }
       }
     }
   } catch (err) {
@@ -95,16 +100,29 @@ export async function toggleBlockUser(currentUserId, targetUserId) {
     : [...legacyBlocked, targetUserId]
   localStorage.setItem('chupa-blocked-users', JSON.stringify(newLegacy))
 
-  // Sync to public storage CDN bucket
+// Sync to public storage CDN bucket
   try {
-    const blob = new Blob([JSON.stringify(newList)], { type: 'application/json' })
-    await supabase.storage
+    const jsonString = JSON.stringify(newList)
+    
+    // Attempt 1: blocked.json
+    let { error: uploadErr } = await supabase.storage
       .from('avatars')
-      .upload(`${currentUserId}/blocked.json`, blob, {
+      .upload(`${currentUserId}/blocked.json`, jsonString, {
         upsert: true,
         contentType: 'application/json',
         cacheControl: '0'
       })
+
+    // Attempt 2: If RLS blocks .json, try .txt
+    if (uploadErr) {
+      await supabase.storage
+        .from('avatars')
+        .upload(`${currentUserId}/blocked.txt`, jsonString, {
+          upsert: true,
+          contentType: 'text/plain',
+          cacheControl: '0'
+        })
+    }
   } catch (err) {
     console.warn('Block sync warning:', err)
   }
