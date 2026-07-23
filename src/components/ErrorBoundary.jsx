@@ -23,47 +23,78 @@ export default class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div style={{
-          height: '100vh',
+          minHeight: '100dvh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--c-bg, #0A0A0E)',
+          background: 'var(--c-bg, #0B0F19)',
           color: 'var(--c-text, #ffffff)',
-          padding: 24,
+          padding: '24px 20px',
           textAlign: 'center',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+          position: 'relative',
+          overflow: 'hidden',
         }}>
+          {/* Background aura glow */}
           <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, marginBottom: 16,
+            position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: 320, height: 320, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(11, 15, 25, 0) 70%)',
+            pointerEvents: 'none',
+          }} />
+
+          <div style={{
+            width: '100%', maxWidth: 360,
+            background: 'var(--c-surface, #111827)',
+            border: '1px solid var(--c-border, rgba(255, 255, 255, 0.08))',
+            borderRadius: 24,
+            padding: '32px 24px',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            zIndex: 10,
           }}>
-            ⚠️
+            <div style={{
+              width: 64, height: 64, borderRadius: 20,
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.35))',
+              border: '1.5px solid rgba(16, 185, 129, 0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 28, marginBottom: 18,
+              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)',
+            }}>
+              ⚡
+            </div>
+
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--c-text, #F9FAFB)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+              App Refreshed
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--c-text-secondary, #9CA3AF)', margin: '0 0 20px', lineHeight: 1.5, maxWidth: 300 }}>
+              {this.state.error?.message || 'An update or session change occurred. Tap below to reload Chupa.'}
+            </p>
+
+            <button
+              onClick={this.handleReload}
+              style={{
+                width: '100%',
+                padding: '13px 0',
+                fontSize: 14.5,
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #059669, #10b981)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 14,
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
+                transition: 'transform 120ms, box-shadow 120ms',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+            >
+              🔄 Reload Chupa
+            </button>
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>
-            Something went wrong
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--c-text-tertiary, #9CA3AF)', margin: '0 0 20px', maxWidth: 320, lineHeight: 1.5 }}>
-            {this.state.error?.message || 'An unexpected error occurred. Tap below to reload.'}
-          </p>
-          <button
-            onClick={this.handleReload}
-            style={{
-              padding: '10px 20px',
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'var(--c-accent, #059669)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              cursor: 'pointer',
-            }}
-          >
-            Reload Chupa
-          </button>
         </div>
       )
     }
