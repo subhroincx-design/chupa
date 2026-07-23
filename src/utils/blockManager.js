@@ -5,8 +5,31 @@ const BLOCK_CACHE_PREFIX = 'chupa-block-list-'
 export async function getBlockedUsers(userId) {
   if (!userId) return []
   const cacheKey = `${BLOCK_CACHE_PREFIX}${userId}`
-  const cached = localStorage.getItem(cacheKey)
 
+  // 1. Try public URL fetch (bypasses RLS & cross-user auth limits)
+  try {
+    const { data: publicUrlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(`${userId}/blocked.json`)
+
+    if (publicUrlData?.publicUrl) {
+      const res = await fetch(`${publicUrlData.publicUrl}?t=${Date.now()}`)
+      if (res.ok) {
+        const list = await res.json()
+        if (Array.isArray(list)) {
+          localStorage.setItem(cacheKey, JSON.stringify(list))
+          return list
+        }
+      } else if (res.status === 404) {
+        localStorage.setItem(cacheKey, JSON.stringify([]))
+        return []
+      }
+    }
+  } catch (err) {
+    // Network or CORS fallback
+  }
+
+  // 2. Storage download fallback
   try {
     const { data } = await supabase.storage
       .from('avatars')
@@ -21,19 +44,35 @@ export async function getBlockedUsers(userId) {
       }
     }
   } catch (err) {
-    // Fall back to local cache if network/bucket unavailable
+    // Cache fallback
   }
 
+  const cached = localStorage.getItem(cacheKey)
   return cached ? JSON.parse(cached) : []
 }
 
+export async function checkBlockStatus(userA, userB) {
+  if (!userA || !userB) return { isBlocked: false, blockedByMe: false, blockedByOther: false }
+  try {
+    const [listA, listB] = await Promise.all([
+      getBlockedUsers(userA),
+      getBlockedUsers(userB)
+    ])
+    const blockedByMe = Array.isArray(listA) && listA.includes(userB)
+    const blockedByOther = Array.isArray(listB) && listB.includes(userA)
+    return {
+      isBlocked: blockedByMe || blockedByOther,
+      blockedByMe,
+      blockedByOther
+    }
+  } catch (err) {
+    return { isBlocked: false, blockedByMe: false, blockedByOther: false }
+  }
+}
+
 export async function isBlockActive(userA, userB) {
-  if (!userA || !userB) return false
-  const [listA, listB] = await Promise.all([
-    getBlockedUsers(userA),
-    getBlockedUsers(userB)
-  ])
-  return listA.includes(userB) || listB.includes(userA)
+  const status = await checkBlockStatus(userA, userB)
+  return status.isBlocked
 }
 
 export async function toggleBlockUser(currentUserId, targetUserId) {
@@ -49,21 +88,37 @@ export async function toggleBlockUser(currentUserId, targetUserId) {
   const cacheKey = `${BLOCK_CACHE_PREFIX}${currentUserId}`
   localStorage.setItem(cacheKey, JSON.stringify(newList))
 
-  // Also sync legacy local key for backward compatibility
+  // Legacy fallback key
   const legacyBlocked = JSON.parse(localStorage.getItem('chupa-blocked-users') || '[]')
   const newLegacy = isCurrentlyBlocked
     ? legacyBlocked.filter(id => id !== targetUserId)
     : [...legacyBlocked, targetUserId]
   localStorage.setItem('chupa-blocked-users', JSON.stringify(newLegacy))
 
-  // Sync to Supabase Storage CDN bucket so recipient devices know they are blocked
+  // Sync to public storage CDN bucket
   try {
     const blob = new Blob([JSON.stringify(newList)], { type: 'application/json' })
     await supabase.storage
       .from('avatars')
-      .upload(`${currentUserId}/blocked.json`, blob, { upsert: true, contentType: 'application/json' })
+      .upload(`${currentUserId}/blocked.json`, blob, {
+        upsert: true,
+        contentType: 'application/json',
+        cacheControl: '0'
+      })
   } catch (err) {
     console.warn('Block sync warning:', err)
+  }
+
+  // Also broadcast block change event so open chat windows update immediately
+  try {
+    const channel = supabase.channel('global-block-events')
+    await channel.send({
+      type: 'broadcast',
+      event: 'block_toggled',
+      payload: { blockerId: currentUserId, targetId: targetUserId, blocked: !isCurrentlyBlocked }
+    })
+  } catch (err) {
+    // broadcast best-effort
   }
 
   return !isCurrentlyBlocked

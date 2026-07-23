@@ -7,7 +7,7 @@ import MessageInput from './MessageInput'
 import Avatar from './Avatar'
 import Logo from './Logo'
 
-import { toggleBlockUser, isBlockActive } from '../utils/blockManager'
+import { toggleBlockUser, isBlockActive, checkBlockStatus } from '../utils/blockManager'
 
 function groupMessagesByDate(messages) {
   const groups = []
@@ -18,29 +18,26 @@ function groupMessagesByDate(messages) {
   messages.forEach((msg) => {
     const msgDate = new Date(msg.created_at)
     const dateStr = msgDate.toDateString()
+
     const showDate = dateStr !== lastDate
+    if (showDate) lastDate = dateStr
 
-    const isConsecutive = !showDate &&
-      lastSender === msg.sender_id &&
+    const isConsecutive =
+      !showDate &&
+      msg.sender_id === lastSender &&
       lastTimestamp &&
-      (msgDate - lastTimestamp < 5 * 60 * 1000)
+      msgDate - lastTimestamp < 5 * 60 * 1000
 
-    groups.push({
-      msg,
-      showDate,
-      dateLabel: showDate ? formatDateLabel(msg.created_at) : null,
-      isConsecutive,
-    })
-
-    lastDate = dateStr
     lastSender = msg.sender_id
     lastTimestamp = msgDate
+
+    groups.push({ msg, showDate, dateLabel: formatDateLabel(msg.created_at), isConsecutive })
   })
 
   return groups
 }
 
-export default function ChatView({ conversation, onBack, onDeleteChat, onOpenProfile }) {
+export default function ChatView({ conversation, onBack, onOpenProfile, onDeleteConversation }) {
   const { user, isUserOnline } = useAuth()
   const { messages, loading, sendMessage, deleteMessage } = useMessages(conversation?.conversation_id)
   const [replyingTo, setReplyingTo] = useState(null)
@@ -124,22 +121,43 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
   }, [messages, isOtherReading])
 
   // Synchronized real-time block state
-  const [isBlocked, setIsBlocked] = useState(false)
+  const [blockInfo, setBlockInfo] = useState({ isBlocked: false, blockedByMe: false, blockedByOther: false })
+
+  const updateBlockStatus = useCallback(async () => {
+    if (!conversation?.other_user_id || !user?.id) return
+    const status = await checkBlockStatus(user.id, conversation.other_user_id)
+    setBlockInfo(status)
+  }, [conversation?.other_user_id, user?.id])
 
   useEffect(() => {
     if (!conversation?.other_user_id || !user?.id) return
-    let active = true
-    isBlockActive(user.id, conversation.other_user_id).then((blocked) => {
-      if (active) setIsBlocked(blocked)
-    })
-    return () => { active = false }
-  }, [conversation?.other_user_id, user?.id])
+    updateBlockStatus()
+
+    // Poll every 3 seconds so if recipient blocks us while chat is open, UI locks immediately
+    const timer = setInterval(updateBlockStatus, 3000)
+
+    // Listen to realtime block events broadcast
+    const blockChannel = supabase.channel('global-block-events')
+      .on('broadcast', { event: 'block_toggled' }, (payload) => {
+        const { blockerId, targetId } = payload.payload || {}
+        if ((blockerId === user.id && targetId === conversation.other_user_id) ||
+            (blockerId === conversation.other_user_id && targetId === user.id)) {
+          updateBlockStatus()
+        }
+      })
+      .subscribe()
+
+    return () => {
+      clearInterval(timer)
+      supabase.removeChannel(blockChannel)
+    }
+  }, [conversation?.other_user_id, user?.id, updateBlockStatus])
 
   const toggleBlock = async () => {
     if (!conversation?.other_user_id || !user?.id) return
     setShowOptions(false)
-    const newStatus = await toggleBlockUser(user.id, conversation.other_user_id)
-    setIsBlocked(newStatus)
+    await toggleBlockUser(user.id, conversation.other_user_id)
+    await updateBlockStatus()
   }
 
   // Supabase Realtime Typing Broadcast Channel
@@ -373,11 +391,11 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
               onClick={toggleBlock}
               style={{
                 width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
-                color: isBlocked ? 'var(--c-accent)' : 'var(--c-text)',
+                color: blockInfo.blockedByMe ? 'var(--c-accent)' : 'var(--c-text)',
                 background: 'none', cursor: 'pointer',
               }}
             >
-              {isBlocked ? '🔓 Unblock user' : '🚫 Block user'}
+              {blockInfo.blockedByMe ? '🔓 Unblock user' : '🚫 Block user'}
             </button>
             <button
               onClick={() => {
@@ -399,27 +417,35 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
       </div>
 
       {/* Block banner */}
-      {isBlocked && (
+      {blockInfo.isBlocked && (
         <div style={{
-          padding: '7px 16px',
+          padding: '8px 16px',
           background: 'rgba(220,38,38,0.06)',
           borderBottom: '1px solid rgba(220,38,38,0.12)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <span style={{ fontSize: 12.5, color: 'var(--c-danger)', fontWeight: 600 }}>
-            🚫 You have blocked this user
-          </span>
-          <button
-            onClick={toggleBlock}
-            style={{
-              fontSize: 11.5, fontWeight: 700,
-              color: 'var(--c-accent)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              textDecoration: 'underline', padding: 0,
-            }}
-          >
-            Unblock
-          </button>
+          {blockInfo.blockedByMe ? (
+            <>
+              <span style={{ fontSize: 12.5, color: 'var(--c-danger)', fontWeight: 600 }}>
+                🚫 You have blocked this user
+              </span>
+              <button
+                onClick={toggleBlock}
+                style={{
+                  fontSize: 11.5, fontWeight: 700,
+                  color: 'var(--c-accent)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  textDecoration: 'underline', padding: 0,
+                }}
+              >
+                Unblock
+              </button>
+            </>
+          ) : (
+            <span style={{ fontSize: 12.5, color: 'var(--c-danger)', fontWeight: 600 }}>
+              🚫 You cannot message this user because you have been blocked
+            </span>
+          )}
         </div>
       )}
 
@@ -479,7 +505,7 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
       </div>
 
       {/* ── Input ── */}
-      {isBlocked ? (
+      {blockInfo.isBlocked ? (
         <div style={{
           padding: '14px 18px',
           borderTop: '1px solid var(--c-border)',
@@ -487,8 +513,11 @@ export default function ChatView({ conversation, onBack, onDeleteChat, onOpenPro
           textAlign: 'center',
           color: 'var(--c-text-tertiary)',
           fontSize: 13,
+          fontWeight: 500,
         }}>
-          You can't send messages to this conversation
+          {blockInfo.blockedByMe
+            ? "Unblock this user to send messages"
+            : "You can't send messages to this conversation"}
         </div>
       ) : (
         <MessageInput
