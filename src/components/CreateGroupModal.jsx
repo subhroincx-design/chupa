@@ -8,6 +8,7 @@ export default function CreateGroupModal({ conversations, onCreate, onClose }) {
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const fileInputRef = useRef(null)
 
   const toggleUser = (conv) => {
@@ -32,16 +33,26 @@ export default function CreateGroupModal({ conversations, onCreate, onClose }) {
     e.preventDefault()
     if (!name.trim() || submitting) return
     setSubmitting(true)
+    setErrorMsg('')
 
-    const group = await onCreate({
-      name: name.trim(),
-      description: description.trim(),
-      memberIds: selectedUsers.map(u => u.other_user_id),
-      avatarFile,
-    })
+    try {
+      const group = await onCreate({
+        name: name.trim(),
+        description: description.trim(),
+        memberIds: selectedUsers.map(u => u.other_user_id),
+        avatarFile,
+      })
 
-    setSubmitting(false)
-    if (group) onClose()
+      setSubmitting(false)
+      if (group) {
+        onClose()
+      } else {
+        setErrorMsg('Failed to create group. Please check SQL patch is applied in Supabase.')
+      }
+    } catch (err) {
+      setSubmitting(false)
+      setErrorMsg(err?.message || 'Failed to create group.')
+    }
   }
 
   return (
@@ -74,6 +85,15 @@ export default function CreateGroupModal({ conversations, onCreate, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          {errorMsg && (
+            <div style={{
+              padding: '8px 12px', marginBottom: 14, borderRadius: 10,
+              background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--c-danger)',
+              color: 'var(--c-danger)', fontSize: 12.5, fontWeight: 500,
+            }}>
+              ⚠️ {errorMsg}
+            </div>
+          )}
           {/* Avatar + Group Name */}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarPick} style={{ display: 'none' }} />

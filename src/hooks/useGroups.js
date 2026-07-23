@@ -45,16 +45,23 @@ export function useGroups() {
         .from('groups')
         .insert({ name: name.trim(), description: description?.trim() || null, created_by: user.id })
         .select().single()
-      if (gErr || !group) return null
+
+      if (gErr) {
+        console.error('Group creation error:', gErr)
+        throw new Error(gErr.message || 'Failed to create group table record')
+      }
+      if (!group) return null
 
       // 2. Add creator as admin
-      await supabase.from('group_members').insert({ group_id: group.id, user_id: user.id, role: 'admin' })
+      const { error: memErr } = await supabase.from('group_members').insert({ group_id: group.id, user_id: user.id, role: 'admin' })
+      if (memErr) console.error('Add admin member error:', memErr)
 
       // 3. Add other members
       if (memberIds && memberIds.length > 0) {
-        await supabase.from('group_members').insert(
+        const { error: othersErr } = await supabase.from('group_members').insert(
           memberIds.map(uid => ({ group_id: group.id, user_id: uid, role: 'member' }))
         )
+        if (othersErr) console.error('Add members error:', othersErr)
       }
 
       // 4. Upload avatar if provided
@@ -66,13 +73,14 @@ export function useGroups() {
           const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(path)
           await supabase.from('groups').update({ avatar_url: publicUrl }).eq('id', group.id)
           group.avatar_url = publicUrl
-        } catch { /* ignore avatar errors */ }
+        } catch { /* ignore avatar upload errors */ }
       }
 
       await fetchGroups()
       return group
-    } catch {
-      return null
+    } catch (err) {
+      console.error('createGroup exception:', err)
+      throw err
     }
   }, [user, fetchGroups])
 
