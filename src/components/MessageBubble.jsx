@@ -140,11 +140,50 @@ const MessageBubble = memo(function MessageBubble({
   const [lightbox, setLightbox] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [dragX, setDragX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const touchStartRef = useRef({ x: 0, y: 0 })
+  const isThresholdMetRef = useRef(false)
   const bubbleRef = useRef(null)
   const menuRef = useRef(null)
 
   const hasImage = !!message.image_url
   const hasText = !!message.content
+
+  const handleDragStart = (e) => {
+    const touch = e.touches ? e.touches[0] : e
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    isThresholdMetRef.current = false
+    setIsDragging(true)
+  }
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return
+    const touch = e.touches ? e.touches[0] : e
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+
+    if (Math.abs(deltaY) > Math.abs(deltaX) && dragX === 0) return
+
+    if (deltaX > 0) {
+      const resistantX = Math.min(deltaX * 0.45, 70)
+      setDragX(resistantX)
+
+      if (resistantX >= 48 && !isThresholdMetRef.current) {
+        isThresholdMetRef.current = true
+        if (navigator.vibrate) navigator.vibrate(15)
+      }
+    }
+  }
+
+  const handleDragEnd = () => {
+    if (isThresholdMetRef.current) {
+      onReply?.({ message, senderName })
+    }
+    setDragX(0)
+    setIsDragging(false)
+    isThresholdMetRef.current = false
+  }
 
   const handleToggleMenu = (e) => {
     e.stopPropagation()
@@ -259,11 +298,49 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
+        {/* Instagram Pull-to-Reply Badge Indicator */}
+        {dragX > 4 && (
+          <div style={{
+            position: 'absolute',
+            left: isSender ? 'auto' : -36,
+            right: isSender ? -36 : 'auto',
+            top: '50%',
+            transform: `translateY(-50%) scale(${Math.min(dragX / 40, 1.1)})`,
+            opacity: Math.min(dragX / 30, 1),
+            transition: isDragging ? 'none' : 'transform 180ms ease, opacity 180ms ease',
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            background: dragX >= 48 ? 'var(--c-accent)' : 'var(--c-surface)',
+            border: '1.5px solid var(--c-accent)',
+            color: dragX >= 48 ? '#ffffff' : 'var(--c-accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 13,
+            fontWeight: 800,
+            boxShadow: '0 4px 12px rgba(5,150,105,0.25)',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}>
+            ↩
+          </div>
+        )}
+
         {/* Bubble Container */}
         <div
           ref={bubbleRef}
-          onClick={() => onReply?.({ message, senderName })}
-          title="Click to reply"
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+          onMouseDown={handleDragStart}
+          onMouseMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onClick={() => {
+            if (dragX < 5) onReply?.({ message, senderName })
+          }}
+          title="Pull or tap to reply"
           style={{
             maxWidth: hasImage ? '72%' : '75%',
             borderRadius,
@@ -271,7 +348,10 @@ const MessageBubble = memo(function MessageBubble({
             border: isSender ? 'none' : '1px solid var(--c-border)',
             boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
             position: 'relative',
-            cursor: 'pointer',
+            transform: `translateX(${dragX}px)`,
+            transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.25)',
+            cursor: isDragging ? 'grabbing' : 'pointer',
+            touchAction: 'pan-y',
           }}
         >
           {/* Group Sender Header */}
