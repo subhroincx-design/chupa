@@ -4,49 +4,73 @@ import { sanitizeMessage } from '../utils/sanitize'
 export default function MessageInput({ onSend, disabled, replyingTo, onCancelReply, onTyping }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [imageError, setImageError] = useState('')
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const inputRef = useRef(null)
+  const fileRef = useRef(null)
 
-  // Detect virtual software keyboard open/close state via Visual Viewport API
   useEffect(() => {
     if (!window.visualViewport) return
-
-    const handleResize = () => {
-      // If visualViewport height is significantly smaller than window.innerHeight, keyboard is active
-      const keyboardActive = window.innerHeight - window.visualViewport.height > 120
-      setIsKeyboardOpen(keyboardActive)
+    const handle = () => {
+      setIsKeyboardOpen(window.innerHeight - window.visualViewport.height > 120)
     }
-
-    window.visualViewport.addEventListener('resize', handleResize)
-    return () => window.visualViewport.removeEventListener('resize', handleResize)
+    window.visualViewport.addEventListener('resize', handle)
+    return () => window.visualViewport.removeEventListener('resize', handle)
   }, [])
 
   useEffect(() => {
-    if (replyingTo) {
-      inputRef.current?.focus()
-    }
+    if (replyingTo) inputRef.current?.focus()
   }, [replyingTo])
+
+  const handleImagePick = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    e.target.value = ''
+    setImageError('')
+    if (f.size > 5 * 1024 * 1024) {
+      setImageError('Image must be under 5MB')
+      return
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(f.type)) {
+      setImageError('Only JPEG, PNG, WEBP or GIF')
+      return
+    }
+    setImageFile(f)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target.result)
+    reader.readAsDataURL(f)
+  }
+
+  const clearImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setImageError('')
+  }
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
-    const sanitized = sanitizeMessage(text)
-    if (!sanitized || sending) return
+    const sanitized = text.trim() ? sanitizeMessage(text) : ''
+    if ((!sanitized && !imageFile) || sending || disabled) return
 
     setSending(true)
 
-    // Prepend quoted context if replying
     let finalContent = sanitized
-    if (replyingTo) {
+    if (replyingTo && sanitized) {
       const quoteAuthor = replyingTo.senderName || 'Message'
-      const truncated = replyingTo.message.content.length > 60
-        ? replyingTo.message.content.slice(0, 60) + '...'
-        : replyingTo.message.content
+      const truncated = replyingTo.message.content
+        ? (replyingTo.message.content.length > 60
+          ? replyingTo.message.content.slice(0, 60) + '...'
+          : replyingTo.message.content)
+        : '[Image]'
       finalContent = `> ${quoteAuthor}: "${truncated}"\n${sanitized}`
     }
 
-    const success = await onSend(finalContent)
+    const success = await onSend(finalContent || null, imageFile)
     if (success !== false) {
       setText('')
+      clearImage()
       onCancelReply?.()
     }
     setSending(false)
@@ -65,60 +89,119 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
   }
 
   const remaining = 2000 - text.length
-  const canSend = text.trim().length > 0 && !sending
+  const canSend = (text.trim().length > 0 || !!imageFile) && !sending && !disabled
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
+      display: 'flex', flexDirection: 'column',
       borderTop: '1px solid var(--c-border)',
       background: 'var(--c-surface)',
       flexShrink: 0,
     }}>
-      {/* Replying quote bar */}
+      {/* Reply bar */}
       {replyingTo && (
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 14px 6px',
           background: 'var(--c-bg)',
           borderBottom: '1px solid var(--c-border)',
-          fontSize: 12,
         }}>
           <div style={{ flex: 1, minWidth: 0, borderLeft: '3px solid var(--c-accent)', paddingLeft: 8 }}>
             <span style={{ fontWeight: 600, color: 'var(--c-accent)', display: 'block', fontSize: 11 }}>
               Replying to {replyingTo.senderName || 'user'}
             </span>
             <span style={{ color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: 12 }}>
-              {replyingTo.message.content}
+              {replyingTo.message.content || '[Image]'}
             </span>
           </div>
-          <button
-            onClick={onCancelReply}
-            aria-label="Cancel reply"
-            style={{
-              padding: 4,
-              fontSize: 14,
-              color: 'var(--c-text-tertiary)',
-              cursor: 'pointer',
-              marginLeft: 8,
-            }}
-          >
-            ✕
-          </button>
+          <button onClick={onCancelReply} style={{ padding: 4, fontSize: 14, color: 'var(--c-text-tertiary)', cursor: 'pointer', marginLeft: 8 }}>✕</button>
         </div>
       )}
 
-      {/* Input container */}
+      {/* Image preview strip */}
+      {(imagePreview || imageError) && (
+        <div style={{
+          padding: '8px 14px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          {imagePreview && (
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img
+                src={imagePreview}
+                alt="preview"
+                style={{
+                  height: 64, width: 64, objectFit: 'cover',
+                  borderRadius: 10,
+                  border: '1.5px solid var(--c-accent)',
+                }}
+              />
+              <button
+                onClick={clearImage}
+                style={{
+                  position: 'absolute', top: -6, right: -6,
+                  width: 18, height: 18, borderRadius: '50%',
+                  background: 'var(--c-danger)', color: '#fff',
+                  fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', border: '1.5px solid var(--c-surface)',
+                  fontWeight: 700,
+                }}
+              >✕</button>
+            </div>
+          )}
+          {imageError && (
+            <span style={{ fontSize: 12, color: 'var(--c-danger)', fontWeight: 500 }}>{imageError}</span>
+          )}
+        </div>
+      )}
+
+      {/* Main input row */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        padding: '10px 12px',
+        gap: 6,
+        padding: '10px 10px',
         paddingBottom: isKeyboardOpen ? '10px' : 'calc(10px + var(--safe-bottom))',
-        background: 'var(--c-surface)',
       }}>
+        {/* Hidden file input */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={handleImagePick}
+          style={{ display: 'none' }}
+          disabled={disabled}
+        />
+
+        {/* Image attach button */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={disabled}
+          aria-label="Attach image"
+          style={{
+            width: 38, height: 38,
+            borderRadius: '50%',
+            background: imageFile ? 'var(--c-accent-light)' : 'var(--c-surface-hover)',
+            border: `1.5px solid ${imageFile ? 'var(--c-accent)' : 'var(--c-border)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            transition: 'all 150ms',
+            opacity: disabled ? 0.4 : 1,
+          }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+            stroke={imageFile ? 'var(--c-accent)' : 'var(--c-text-tertiary)'}
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </button>
+
+        {/* Text input */}
         <div style={{ flex: 1, position: 'relative' }}>
           <input
             ref={inputRef}
@@ -127,15 +210,15 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Message..."
-            readOnly={false}
+            placeholder={disabled ? 'You have blocked this user' : 'Message...'}
+            disabled={disabled}
             autoComplete="off"
             autoCorrect="on"
             autoCapitalize="sentences"
             spellCheck="true"
             style={{
               width: '100%',
-              padding: '10px 40px 10px 16px',
+              padding: '10px 38px 10px 16px',
               fontSize: 16,
               lineHeight: 1.4,
               background: 'var(--c-bg)',
@@ -144,15 +227,10 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
               color: 'var(--c-text)',
               caretColor: 'var(--c-accent)',
               transition: 'border-color 150ms, box-shadow 150ms',
+              opacity: disabled ? 0.5 : 1,
             }}
-            onFocus={(e) => {
-              e.target.style.borderColor = 'var(--c-accent)'
-              e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)'
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'var(--c-border)'
-              e.target.style.boxShadow = 'none'
-            }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--c-accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)' }}
+            onBlur={(e) => { e.target.style.borderColor = 'var(--c-border)'; e.target.style.boxShadow = 'none' }}
           />
           {remaining <= 200 && (
             <span style={{
@@ -166,6 +244,7 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
           )}
         </div>
 
+        {/* Send button */}
         <button
           id="send-message"
           type="button"
@@ -178,7 +257,7 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
             border: `1.5px solid ${canSend ? 'transparent' : 'var(--c-border)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
-            transition: 'background 180ms, transform 80ms, border-color 180ms',
+            transition: 'background 180ms, transform 80ms',
           }}
           onMouseDown={(e) => { if (canSend) e.currentTarget.style.transform = 'scale(0.88)' }}
           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
@@ -187,19 +266,11 @@ export default function MessageInput({ onSend, disabled, replyingTo, onCancelRep
           onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
         >
           {sending ? (
-            <span style={{
-              width: 15, height: 15,
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              display: 'inline-block',
-              animation: 'spin 0.7s linear infinite',
-            }} />
+            <span style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
           ) : (
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
               stroke={canSend ? '#fff' : 'var(--c-text-tertiary)'}
-              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            >
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"/>
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>

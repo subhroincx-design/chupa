@@ -1,22 +1,29 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useConversations } from '../hooks/useConversations'
+import { useGroups } from '../hooks/useGroups'
 import { useSearch } from '../hooks/useSearch'
 import { supabase } from '../lib/supabase'
 import { requestNotificationPermission } from '../utils/notifications'
 import ConversationList from '../components/ConversationList'
 import ChatView from '../components/ChatView'
+import GroupView from '../components/GroupView'
+import CreateGroupModal from '../components/CreateGroupModal'
 
 export default function Dashboard() {
   const { user } = useAuth()
   const { conversations, loading: convsLoading, deleteConversation } = useConversations()
+  const { groups, createGroup, leaveGroup } = useGroups()
   const { query, results, searching, search, clearSearch } = useSearch()
 
+  const [activeTab, setActiveTab] = useState('chats') // 'chats' | 'groups'
   const [activeConversation, setActiveConversation] = useState(null)
-  const [mobileView, setMobileView] = useState('list')
+  const [activeGroup, setActiveGroup] = useState(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+
+  const [mobileView, setMobileView] = useState('list') // 'list' | 'chat' | 'group'
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
 
-  // Request Notification permission on Android & Desktop on dashboard mount
   useEffect(() => {
     requestNotificationPermission().catch(() => {})
   }, [])
@@ -27,15 +34,15 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Smart Mobile Hardware Back Button Handling
   useEffect(() => {
     if (!isMobile) return
 
     const handlePopState = (e) => {
-      if (mobileView === 'chat') {
+      if (mobileView === 'chat' || mobileView === 'group') {
         e.preventDefault()
         setMobileView('list')
         setActiveConversation(null)
+        setActiveGroup(null)
       }
     }
 
@@ -45,7 +52,18 @@ export default function Dashboard() {
 
   const handleSelectConversation = useCallback((conv) => {
     setActiveConversation(conv)
+    setActiveGroup(null)
     setMobileView('chat')
+    clearSearch()
+    if (window.innerWidth < 768) {
+      window.history.pushState({ chat: true }, '')
+    }
+  }, [clearSearch])
+
+  const handleSelectGroup = useCallback((group) => {
+    setActiveGroup(group)
+    setActiveConversation(null)
+    setMobileView('group')
     clearSearch()
     if (window.innerWidth < 768) {
       window.history.pushState({ chat: true }, '')
@@ -58,6 +76,7 @@ export default function Dashboard() {
     } else {
       setMobileView('list')
       setActiveConversation(null)
+      setActiveGroup(null)
     }
   }, [])
 
@@ -65,14 +84,24 @@ export default function Dashboard() {
     async (convId) => {
       if (!convId) return
       const success = await deleteConversation(convId)
-      if (success) {
-        if (activeConversation?.conversation_id === convId) {
-          setActiveConversation(null)
-          setMobileView('list')
-        }
+      if (success && activeConversation?.conversation_id === convId) {
+        setActiveConversation(null)
+        setMobileView('list')
       }
     },
     [deleteConversation, activeConversation]
+  )
+
+  const handleLeaveGroup = useCallback(
+    async (groupId) => {
+      if (!groupId) return
+      await leaveGroup(groupId)
+      if (activeGroup?.id === groupId) {
+        setActiveGroup(null)
+        setMobileView('list')
+      }
+    },
+    [leaveGroup, activeGroup]
   )
 
   const handleSearchResultClick = useCallback(
@@ -91,7 +120,9 @@ export default function Dashboard() {
           last_message: null,
           last_message_at: null,
         }
+        setActiveTab('chats')
         setActiveConversation(conv)
+        setActiveGroup(null)
         setMobileView('chat')
         clearSearch()
         if (window.innerWidth < 768) {
@@ -108,6 +139,12 @@ export default function Dashboard() {
     conversations,
     activeId: activeConversation?.conversation_id,
     onSelect: handleSelectConversation,
+    groups,
+    activeGroupId: activeGroup?.id,
+    onSelectGroup: handleSelectGroup,
+    onCreateGroupClick: () => setShowCreateGroup(true),
+    activeTab,
+    onTabChange: (t) => { setActiveTab(t); clearSearch() },
     onDeleteChat: handleDeleteChat,
     searchQuery: query,
     onSearch: search,
@@ -118,38 +155,64 @@ export default function Dashboard() {
     loading: convsLoading,
   }
 
-  /* ── Mobile View (single panel) ── */
+  /* ── Mobile View ── */
   if (isMobile) {
     return (
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'var(--c-bg)',
-        overflow: 'hidden',
-      }}>
-        {mobileView === 'list' ? (
-          <ConversationList {...sharedListProps} />
-        ) : (
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--c-bg)', overflow: 'hidden' }}>
+        {mobileView === 'list' && <ConversationList {...sharedListProps} />}
+        {mobileView === 'chat' && (
           <ChatView conversation={activeConversation} onBack={handleBack} onDeleteChat={handleDeleteChat} />
+        )}
+        {mobileView === 'group' && (
+          <GroupView group={activeGroup} onBack={handleBack} onLeaveGroup={handleLeaveGroup} />
+        )}
+        {showCreateGroup && (
+          <CreateGroupModal
+            conversations={conversations}
+            onCreate={async (data) => {
+              const newG = await createGroup(data)
+              if (newG) {
+                setActiveTab('groups')
+                handleSelectGroup(newG)
+              }
+              return newG
+            }}
+            onClose={() => setShowCreateGroup(false)}
+          />
         )}
       </div>
     )
   }
 
-  /* ── Desktop PC View (WhatsApp Web style full height dual-pane) ── */
+  /* ── Desktop View ── */
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      width: '100vw',
-      height: '100vh',
-      background: 'var(--c-bg)',
-      display: 'grid',
-      gridTemplateColumns: '320px 1fr',
-      overflow: 'hidden',
+      position: 'fixed', inset: 0, width: '100vw', height: '100vh',
+      background: 'var(--c-bg)', display: 'grid',
+      gridTemplateColumns: '320px 1fr', overflow: 'hidden',
     }}>
       <ConversationList {...sharedListProps} />
-      <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
+
+      {activeTab === 'groups' || activeGroup ? (
+        <GroupView group={activeGroup} onLeaveGroup={handleLeaveGroup} />
+      ) : (
+        <ChatView conversation={activeConversation} onDeleteChat={handleDeleteChat} />
+      )}
+
+      {showCreateGroup && (
+        <CreateGroupModal
+          conversations={conversations}
+          onCreate={async (data) => {
+            const newG = await createGroup(data)
+            if (newG) {
+              setActiveTab('groups')
+              handleSelectGroup(newG)
+            }
+            return newG
+          }}
+          onClose={() => setShowCreateGroup(false)}
+        />
+      )}
     </div>
   )
 }

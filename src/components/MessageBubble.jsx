@@ -10,7 +10,6 @@ function formatDateLabel(dateStr) {
   const now = new Date()
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
-
   if (d.toDateString() === now.toDateString()) return 'Today'
   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
   return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
@@ -28,20 +27,71 @@ function DateSeparator({ label }) {
   )
 }
 
+// Full-screen image lightbox
+function Lightbox({ src, onClose }) {
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+        cursor: 'zoom-out',
+      }}
+    >
+      <img
+        src={src}
+        alt="Full size"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '100%', maxHeight: '100%',
+          borderRadius: 12,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+          objectFit: 'contain',
+          cursor: 'default',
+        }}
+      />
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          color: '#fff', fontSize: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >✕</button>
+    </div>
+  )
+}
+
 const MessageBubble = memo(function MessageBubble({
   message, isSender, showDate, dateLabel, isConsecutive, onReply, onDelete, senderName, isDelivered,
 }) {
   const [showMenu, setShowMenu] = useState(false)
   const [openUpward, setOpenUpward] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
   const bubbleRef = useRef(null)
   const menuRef = useRef(null)
+
+  const hasImage = !!message.image_url
+  const hasText = !!message.content
 
   const handleToggleMenu = (e) => {
     e.stopPropagation()
     if (!showMenu && bubbleRef.current) {
       const rect = bubbleRef.current.getBoundingClientRect()
-      // If bubble is in lower half of screen, pop menu UPWARDS so it never gets obscured
       setOpenUpward(rect.bottom > window.innerHeight - 180)
     }
     setShowMenu(!showMenu)
@@ -61,7 +111,7 @@ const MessageBubble = memo(function MessageBubble({
   }, [showMenu])
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.content)
+    if (message.content) navigator.clipboard.writeText(message.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 1200)
     setShowMenu(false)
@@ -71,155 +121,140 @@ const MessageBubble = memo(function MessageBubble({
   if (isConsecutive && !showDate) {
     borderRadius = isSender ? '18px 4px 4px 18px' : '4px 18px 18px 4px'
   }
-
   const marginTop = isConsecutive && !showDate ? 2 : 8
 
   return (
     <>
+      {lightbox && <Lightbox src={message.image_url} onClose={() => setLightbox(false)} />}
       {showDate && <DateSeparator label={dateLabel} />}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: isSender ? 'flex-end' : 'flex-start',
-          marginTop,
-          position: 'relative',
-          zIndex: showMenu ? 100 : 1,
-        }}
-      >
+
+      <div style={{
+        display: 'flex',
+        justifyContent: isSender ? 'flex-end' : 'flex-start',
+        marginTop,
+        position: 'relative',
+        zIndex: showMenu ? 100 : 1,
+      }}>
         <div
           ref={bubbleRef}
           style={{
-            maxWidth: '75%',
-            padding: '8px 12px 6px',
+            maxWidth: hasImage ? '72%' : '75%',
             borderRadius,
             background: isSender ? 'var(--c-accent)' : 'var(--c-surface)',
             border: isSender ? 'none' : '1px solid var(--c-border)',
             boxShadow: isSender ? '0 1px 4px rgba(5,150,105,0.18)' : 'var(--shadow-sm)',
             position: 'relative',
-            zIndex: showMenu ? 100 : 1,
+            overflow: 'hidden',
           }}
         >
-          {/* Action trigger button */}
+          {/* Action trigger */}
           <button
             onClick={handleToggleMenu}
             aria-label="Message options"
             style={{
-              position: 'absolute',
-              top: 4,
-              right: isSender ? 'auto' : -24,
-              left: isSender ? -24 : 'auto',
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
+              position: 'absolute', top: 4,
+              right: isSender ? 'auto' : -26,
+              left: isSender ? -26 : 'auto',
+              width: 22, height: 22, borderRadius: '50%',
               background: 'var(--c-surface)',
               border: '1px solid var(--c-border)',
               color: 'var(--c-text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, cursor: 'pointer',
               opacity: showMenu ? 1 : 0.45,
-              transition: 'opacity 120ms',
-              zIndex: 101,
+              transition: 'opacity 120ms', zIndex: 101,
             }}
-          >
-            ⋮
-          </button>
+          >⋮</button>
 
           {/* Context menu */}
           {showMenu && (
-            <div
-              ref={menuRef}
-              style={{
-                position: 'absolute',
-                top: openUpward ? 'auto' : '100%',
-                bottom: openUpward ? '100%' : 'auto',
-                right: isSender ? 0 : 'auto',
-                left: isSender ? 'auto' : 0,
-                marginTop: openUpward ? 0 : 6,
-                marginBottom: openUpward ? 6 : 0,
-                background: 'var(--c-surface)',
-                border: '1px solid var(--c-border)',
-                borderRadius: 12,
-                boxShadow: 'var(--shadow-lg)',
-                zIndex: 200,
-                padding: '4px 0',
-                minWidth: 160,
-                overflow: 'hidden',
-              }}
-            >
-              <button
-                onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
-                style={{
-                  width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
-                  color: 'var(--c-text)', background: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
-                }}
-              >
+            <div ref={menuRef} style={{
+              position: 'absolute',
+              top: openUpward ? 'auto' : '100%',
+              bottom: openUpward ? '100%' : 'auto',
+              right: isSender ? 0 : 'auto',
+              left: isSender ? 'auto' : 0,
+              marginTop: openUpward ? 0 : 6,
+              marginBottom: openUpward ? 6 : 0,
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              borderRadius: 12, boxShadow: 'var(--shadow-lg)',
+              zIndex: 200, padding: '4px 0', minWidth: 160, overflow: 'hidden',
+            }}>
+              <button onClick={() => { onReply?.({ message, senderName }); setShowMenu(false) }}
+                style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
                 ↩ Reply
               </button>
-              <button
-                onClick={handleCopy}
-                style={{
-                  width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
-                  color: 'var(--c-text)', background: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
-                }}
-              >
-                {copied ? '✓ Copied' : '📋 Copy text'}
-              </button>
+              {hasText && (
+                <button onClick={handleCopy}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
+                  {copied ? '✓ Copied' : '📋 Copy text'}
+                </button>
+              )}
+              {hasImage && (
+                <button onClick={() => { setLightbox(true); setShowMenu(false) }}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-text)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40 }}>
+                  🔍 View image
+                </button>
+              )}
               {isSender && onDelete && (
-                <button
-                  onClick={() => { onDelete(message.id); setShowMenu(false) }}
-                  style={{
-                    width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left',
-                    color: 'var(--c-danger)', background: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 10, minHeight: 40,
-                    borderTop: '1px solid var(--c-border)', marginTop: 2, paddingTop: 8,
-                  }}
-                >
+                <button onClick={() => { onDelete(message.id); setShowMenu(false) }}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, textAlign: 'left', color: 'var(--c-danger)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, borderTop: '1px solid var(--c-border)' }}>
                   🗑 Delete for everyone
                 </button>
               )}
             </div>
           )}
 
-          <p
-            style={{
-              fontSize: 14.5,
-              lineHeight: 1.45,
-              wordBreak: 'break-word',
-              whiteSpace: 'pre-wrap',
-              color: isSender ? '#ffffff' : 'var(--c-text)',
-              margin: 0,
-            }}
-            ref={(el) => { if (el) el.textContent = message.content }}
-          />
+          {/* Image */}
+          {hasImage && (
+            <div
+              onClick={() => setLightbox(true)}
+              style={{ cursor: 'zoom-in', position: 'relative', lineHeight: 0 }}
+            >
+              {!imgLoaded && (
+                <div className="skeleton" style={{ width: '100%', height: 160, minWidth: 180 }} />
+              )}
+              <img
+                src={message.image_url}
+                alt="Sent image"
+                onLoad={() => setImgLoaded(true)}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 260,
+                  minWidth: 120,
+                  objectFit: 'cover',
+                  display: imgLoaded ? 'block' : 'none',
+                  borderRadius: hasText ? '0' : borderRadius,
+                }}
+              />
+            </div>
+          )}
 
+          {/* Text content */}
+          {hasText && (
+            <div style={{ padding: '8px 12px 0' }}>
+              <p style={{
+                fontSize: 14.5, lineHeight: 1.45,
+                wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                color: isSender ? '#ffffff' : 'var(--c-text)',
+                margin: 0,
+              }}
+                ref={(el) => { if (el) el.textContent = message.content }}
+              />
+            </div>
+          )}
+
+          {/* Time + ticks */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 3,
-            marginTop: 3,
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3,
+            padding: hasText ? '3px 10px 6px' : '4px 8px 6px',
           }}>
-            <span style={{
-              fontSize: 10,
-              color: isSender ? 'rgba(255,255,255,0.65)' : 'var(--c-text-tertiary)',
-              fontWeight: 500,
-              userSelect: 'none',
-            }}>
+            <span style={{ fontSize: 10, color: isSender ? 'rgba(255,255,255,0.65)' : 'var(--c-text-tertiary)', fontWeight: 500, userSelect: 'none' }}>
               {formatTime(message.created_at)}
             </span>
             {isSender && (
-              <span style={{
-                fontSize: 10,
-                color: isDelivered ? '#ffffff' : 'rgba(255,255,255,0.65)',
-                letterSpacing: -1.5,
-                fontWeight: 700,
-                userSelect: 'none',
-              }}>
+              <span style={{ fontSize: 10, color: isDelivered ? '#ffffff' : 'rgba(255,255,255,0.65)', letterSpacing: -1.5, fontWeight: 700, userSelect: 'none' }}>
                 {isDelivered ? '✓✓' : '✓'}
               </span>
             )}
@@ -231,5 +266,4 @@ const MessageBubble = memo(function MessageBubble({
 })
 
 export default MessageBubble
-
 export { formatDateLabel }

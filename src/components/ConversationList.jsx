@@ -26,9 +26,7 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
   return (
     <div
       style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
+        position: 'relative', display: 'flex', alignItems: 'center',
         background: isActive ? 'var(--c-accent-light)' : 'transparent',
         borderLeft: `3px solid ${isActive ? 'var(--c-accent)' : 'transparent'}`,
         transition: 'background 120ms',
@@ -39,12 +37,8 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
         onClick={() => onClick(conversation)}
         style={{
           flex: 1, display: 'flex', alignItems: 'center', gap: 12,
-          padding: '11px 14px',
-          textAlign: 'left',
-          cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent',
-          minHeight: 60,
-          minWidth: 0,
+          padding: '11px 14px', textAlign: 'left', cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent', minHeight: 60, minWidth: 0,
         }}
         onMouseEnter={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'var(--c-surface-hover)' }}
         onMouseLeave={(e) => { if (!isActive) e.currentTarget.parentElement.style.background = 'transparent' }}
@@ -53,10 +47,8 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
           <Avatar name={conversation.other_user_name} url={conversation.other_user_avatar} size={42} />
           {isOnline && (
             <span style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 10, height: 10, borderRadius: '50%',
-              background: 'var(--c-accent)',
-              border: '2px solid var(--c-surface)',
+              position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%',
+              background: 'var(--c-accent)', border: '2px solid var(--c-surface)',
             }} />
           )}
         </div>
@@ -81,22 +73,45 @@ function ConversationItem({ conversation, isActive, isPinned, isOnline, onPinTog
         </div>
       </button>
 
-      {/* Pin toggle button */}
       <button
         onClick={(e) => { e.stopPropagation(); onPinToggle(conversation.conversation_id) }}
         title={isPinned ? 'Unpin chat' : 'Pin chat'}
         style={{
-          padding: '8px 10px',
-          fontSize: 12,
+          padding: '8px 10px', fontSize: 12,
           color: isPinned ? 'var(--c-accent)' : 'var(--c-text-tertiary)',
-          cursor: 'pointer',
-          opacity: isPinned ? 1 : 0.4,
-          transition: 'opacity 120ms',
+          cursor: 'pointer', opacity: isPinned ? 1 : 0.4, transition: 'opacity 120ms',
         }}
       >
         {isPinned ? '📌' : '📍'}
       </button>
     </div>
+  )
+}
+
+function GroupItem({ group, isActive, onClick }) {
+  return (
+    <button
+      onClick={() => onClick(group)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+        padding: '11px 14px', textAlign: 'left', cursor: 'pointer',
+        background: isActive ? 'var(--c-accent-light)' : 'transparent',
+        borderLeft: `3px solid ${isActive ? 'var(--c-accent)' : 'transparent'}`,
+        transition: 'background 120ms', minHeight: 60,
+      }}
+      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--c-surface-hover)' }}
+      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+    >
+      <Avatar name={group.name} url={group.avatar_url} size={42} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {group.name}
+        </p>
+        <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {group.description || 'Tap to chat'}
+        </p>
+      </div>
+    </button>
   )
 }
 
@@ -114,13 +129,14 @@ function SkeletonConversation() {
 
 export default function ConversationList({
   conversations, activeId, onSelect,
+  groups = [], activeGroupId, onSelectGroup, onCreateGroupClick,
+  activeTab = 'chats', onTabChange,
   searchQuery, onSearch, onClearSearch,
   searchResults, searching, onSearchResultClick, loading,
 }) {
   const { isUserOnline } = useAuth()
   const parentRef = useRef(null)
 
-  // Pinned chats stored in localStorage
   const [pinnedIds, setPinnedIds] = useState(() => {
     try {
       const saved = localStorage.getItem('chupa-pinned-chats')
@@ -140,7 +156,6 @@ export default function ConversationList({
     })
   }
 
-  // Sort pinned conversations to the top
   const sortedConversations = useMemo(() => {
     if (!pinnedIds.length) return conversations
     const pinned = conversations.filter((c) => pinnedIds.includes(c.conversation_id))
@@ -148,7 +163,7 @@ export default function ConversationList({
     return [...pinned, ...unpinned]
   }, [conversations, pinnedIds])
 
-  const shouldVirtualize = sortedConversations.length > 50
+  const shouldVirtualize = activeTab === 'chats' && sortedConversations.length > 50
   const virtualizer = useVirtualizer({
     count: sortedConversations.length,
     getScrollElement: () => parentRef.current,
@@ -159,26 +174,16 @@ export default function ConversationList({
 
   return (
     <div style={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      borderRight: '1px solid var(--c-border)',
-      background: 'var(--c-surface)',
-      paddingLeft: 'var(--safe-left)',
-      position: 'relative',
+      height: '100%', display: 'flex', flexDirection: 'column',
+      borderRight: '1px solid var(--c-border)', background: 'var(--c-surface)',
+      paddingLeft: 'var(--safe-left)', position: 'relative',
     }}>
       {/* Header */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '13px 14px',
-        paddingTop: 'calc(13px + var(--safe-top))',
-        borderBottom: '1px solid var(--c-border)',
-        background: 'var(--c-surface)',
-        flexShrink: 0,
-        position: 'relative',
-        zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '13px 14px', paddingTop: 'calc(13px + var(--safe-top))',
+        borderBottom: '1px solid var(--c-border)', background: 'var(--c-surface)',
+        flexShrink: 0, position: 'relative', zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Logo size={28} />
@@ -189,7 +194,41 @@ export default function ConversationList({
         <ProfileMenu />
       </div>
 
-      {/* Search */}
+      {/* Tabs: Chats / Groups */}
+      <div style={{
+        display: 'flex', padding: '6px 12px', gap: 6,
+        borderBottom: '1px solid var(--c-border)', flexShrink: 0,
+        background: 'var(--c-bg)',
+      }}>
+        <button
+          onClick={() => onTabChange?.('chats')}
+          style={{
+            flex: 1, padding: '7px 0', fontSize: 13, fontWeight: 600,
+            borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: activeTab === 'chats' ? 'var(--c-surface)' : 'transparent',
+            color: activeTab === 'chats' ? 'var(--c-text)' : 'var(--c-text-secondary)',
+            boxShadow: activeTab === 'chats' ? 'var(--shadow-sm)' : 'none',
+            transition: 'all 120ms',
+          }}
+        >
+          💬 Direct Messages
+        </button>
+        <button
+          onClick={() => onTabChange?.('groups')}
+          style={{
+            flex: 1, padding: '7px 0', fontSize: 13, fontWeight: 600,
+            borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: activeTab === 'groups' ? 'var(--c-surface)' : 'transparent',
+            color: activeTab === 'groups' ? 'var(--c-text)' : 'var(--c-text-secondary)',
+            boxShadow: activeTab === 'groups' ? 'var(--shadow-sm)' : 'none',
+            transition: 'all 120ms',
+          }}
+        >
+          👥 Groups
+        </button>
+      </div>
+
+      {/* Search Bar */}
       <div style={{ flexShrink: 0 }}>
         <SearchBar value={searchQuery} onChange={onSearch} onClear={onClearSearch} />
       </div>
@@ -213,78 +252,97 @@ export default function ConversationList({
         </div>
       )}
 
-      {/* Conversations list */}
+      {/* Content list */}
       <div
         ref={parentRef}
         style={{
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'var(--safe-bottom)',
+          flex: 1, overflowY: 'auto', overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch', paddingBottom: 'var(--safe-bottom)',
         }}
       >
-        {loading ? (
-          <div>
-            {[1, 2, 3, 4, 5].map((i) => <SkeletonConversation key={i} />)}
-          </div>
-        ) : sortedConversations.length === 0 ? (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', padding: '60px 24px', textAlign: 'center',
-          }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: 14,
-              background: 'var(--c-accent-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: 14,
-            }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-              </svg>
+        {activeTab === 'chats' ? (
+          loading ? (
+            <div>{[1, 2, 3, 4].map((i) => <SkeletonConversation key={i} />)}</div>
+          ) : sortedConversations.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 24px', textAlign: 'center' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No conversations yet</p>
+              <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0 }}>Search for someone above to start chatting</p>
             </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>
-              No conversations yet
-            </p>
-            <p style={{ fontSize: 13, color: 'var(--c-text-tertiary)', margin: 0, lineHeight: 1.55 }}>
-              Search for someone above<br />to start chatting
-            </p>
-          </div>
-        ) : shouldVirtualize ? (
-          <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
-            {virtualizer.getVirtualItems().map((vr) => {
-              const conv = sortedConversations[vr.index]
-              return (
-                <div
-                  key={conv.conversation_id}
-                  data-index={vr.index}
-                  ref={virtualizer.measureElement}
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vr.start}px)` }}
-                >
-                  <ConversationItem
-                    conversation={conv}
-                    isActive={activeId === conv.conversation_id}
-                    isPinned={pinnedIds.includes(conv.conversation_id)}
-                    isOnline={isUserOnline(conv.other_user_id)}
-                    onPinToggle={togglePin}
-                    onClick={onSelect}
-                  />
-                </div>
-              )
-            })}
-          </div>
+          ) : shouldVirtualize ? (
+            <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+              {virtualizer.getVirtualItems().map((vr) => {
+                const conv = sortedConversations[vr.index]
+                return (
+                  <div key={conv.conversation_id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vr.start}px)` }}>
+                    <ConversationItem
+                      conversation={conv}
+                      isActive={activeId === conv.conversation_id}
+                      isPinned={pinnedIds.includes(conv.conversation_id)}
+                      isOnline={isUserOnline(conv.other_user_id)}
+                      onPinToggle={togglePin}
+                      onClick={onSelect}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            sortedConversations.map((conv) => (
+              <ConversationItem
+                key={conv.conversation_id}
+                conversation={conv}
+                isActive={activeId === conv.conversation_id}
+                isPinned={pinnedIds.includes(conv.conversation_id)}
+                isOnline={isUserOnline(conv.other_user_id)}
+                onPinToggle={togglePin}
+                onClick={onSelect}
+              />
+            ))
+          )
         ) : (
-          sortedConversations.map((conv) => (
-            <ConversationItem
-              key={conv.conversation_id}
-              conversation={conv}
-              isActive={activeId === conv.conversation_id}
-              isPinned={pinnedIds.includes(conv.conversation_id)}
-              isOnline={isUserOnline(conv.other_user_id)}
-              onPinToggle={togglePin}
-              onClick={onSelect}
-            />
-          ))
+          /* Groups tab */
+          <div>
+            <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Your Groups ({groups.length})
+              </span>
+              <button
+                onClick={onCreateGroupClick}
+                style={{
+                  fontSize: 12.5, fontWeight: 600, color: 'var(--c-accent)',
+                  background: 'var(--c-accent-light)', border: 'none',
+                  padding: '5px 10px', borderRadius: 99, cursor: 'pointer',
+                }}
+              >
+                + New Group
+              </button>
+            </div>
+
+            {groups.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: '0 0 5px' }}>No groups yet</p>
+                <p style={{ fontSize: 12.5, color: 'var(--c-text-tertiary)', margin: '0 0 14px' }}>Create a group to chat with multiple people</p>
+                <button
+                  onClick={onCreateGroupClick}
+                  style={{
+                    padding: '8px 16px', fontSize: 13, fontWeight: 600,
+                    background: 'var(--c-accent)', color: '#fff', borderRadius: 10, cursor: 'pointer',
+                  }}
+                >
+                  + Create Group
+                </button>
+              </div>
+            ) : (
+              groups.map((g) => (
+                <GroupItem
+                  key={g.id}
+                  group={g}
+                  isActive={activeGroupId === g.id}
+                  onClick={onSelectGroup}
+                />
+              ))
+            )}
+          </div>
         )}
       </div>
     </div>

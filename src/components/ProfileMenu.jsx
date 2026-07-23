@@ -25,22 +25,17 @@ function EditModal({ title, value, onSave, onClose, maxLength, info }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '16px 20px',
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
+        padding: '16px 20px', background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
       }}
     >
       <div
         className="fade-in-scale"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 340,
-          padding: '24px 20px',
-          background: 'var(--c-surface)',
-          border: '1px solid var(--c-border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-lg)',
+          width: '100%', maxWidth: 340, padding: '24px 20px',
+          background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+          borderRadius: 16, boxShadow: 'var(--shadow-lg)',
         }}
       >
         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text)', margin: '0 0 16px' }}>{title}</h3>
@@ -50,10 +45,8 @@ function EditModal({ title, value, onSave, onClose, maxLength, info }) {
           onChange={(e) => setInput(e.target.value.slice(0, maxLength || 50))}
           autoFocus
           style={{
-            width: '100%', padding: '12px 14px',
-            fontSize: 16,
-            background: 'var(--c-bg)',
-            border: '1.5px solid var(--c-border)',
+            width: '100%', padding: '12px 14px', fontSize: 16,
+            background: 'var(--c-bg)', border: '1.5px solid var(--c-border)',
             borderRadius: 10, color: 'var(--c-text)', marginBottom: 6,
           }}
           onFocus={(e) => { e.target.style.borderColor = 'var(--c-accent)' }}
@@ -78,8 +71,7 @@ function EditModal({ title, value, onSave, onClose, maxLength, info }) {
             style={{
               flex: 1, padding: '11px 0', fontSize: 14, fontWeight: 600,
               background: 'var(--c-accent)', color: '#fff', borderRadius: 10,
-              opacity: saving || !input.trim() ? 0.5 : 1,
-              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving || !input.trim() ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
             {saving ? 'Saving…' : 'Save'}
@@ -90,10 +82,78 @@ function EditModal({ title, value, onSave, onClose, maxLength, info }) {
   )
 }
 
+function SettingsModal({ user, profile, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+      }}
+    >
+      <div
+        className="fade-in-scale"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 380, padding: '24px 20px',
+          background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+          borderRadius: 18, boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>⚙️ Account Settings</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--c-text-tertiary)', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Linked Email Box */}
+          <div style={{ background: 'var(--c-bg)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)' }}>
+            <span style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-secondary)', marginBottom: 4 }}>
+              Linked Recovery Email
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', wordBreak: 'break-all' }}>
+              {user?.email || profile?.email || 'No email attached'}
+            </span>
+            <p style={{ fontSize: 11.5, color: 'var(--c-text-tertiary)', margin: '4px 0 0' }}>
+              Used to reset your password if you ever forget it.
+            </p>
+          </div>
+
+          {/* Profile details */}
+          <div style={{ background: 'var(--c-bg)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--c-text-secondary)' }}>Display Name</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text)' }}>{profile?.name}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: 'var(--c-text-secondary)' }}>Username</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-accent)' }}>@{profile?.username}</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%', padding: '11px 0', fontSize: 14, fontWeight: 600,
+            background: 'var(--c-accent)', color: '#fff', borderRadius: 10,
+            marginTop: 18, border: 'none', cursor: 'pointer',
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ProfileMenu() {
-  const { profile, signOut, refreshProfile } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const [open, setOpen] = useState(false)
   const [editField, setEditField] = useState(null)
+  const [showSettings, setShowSettings] = useState(false)
   const [showAvatarUpload, setShowAvatarUpload] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
   const menuRef = useRef(null)
@@ -144,8 +204,7 @@ export default function ProfileMenu() {
     color: 'var(--c-text)', background: 'none',
     cursor: 'pointer', transition: 'background 100ms',
     border: 'none', display: 'flex', alignItems: 'center', gap: 10,
-    minHeight: 44,
-    WebkitTapHighlightColor: 'transparent',
+    minHeight: 44, WebkitTapHighlightColor: 'transparent',
   }
 
   return (
@@ -159,8 +218,7 @@ export default function ProfileMenu() {
           background: 'var(--c-bg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           overflow: 'hidden', padding: 0, cursor: 'pointer',
-          transition: 'border-color 150ms',
-          flexShrink: 0,
+          transition: 'border-color 150ms', flexShrink: 0,
         }}
         onMouseEnter={(e) => { if (!open) e.currentTarget.style.borderColor = 'var(--c-accent)' }}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = 'var(--c-border)' }}
@@ -172,12 +230,9 @@ export default function ProfileMenu() {
         <div
           style={{
             position: 'absolute', right: 0, top: '100%', marginTop: 8,
-            width: 230,
-            background: 'var(--c-surface)',
-            border: '1px solid var(--c-border)',
-            borderRadius: 14,
-            boxShadow: 'var(--shadow-lg)',
-            zIndex: 100, overflow: 'hidden',
+            width: 230, background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)', borderRadius: 14,
+            boxShadow: 'var(--shadow-lg)', zIndex: 100, overflow: 'hidden',
           }}
         >
           {/* Profile header */}
@@ -195,6 +250,11 @@ export default function ProfileMenu() {
 
           {/* Actions */}
           <div style={{ padding: '4px 0' }}>
+            <button style={menuItemStyle} onClick={() => { setShowSettings(true); setOpen(false) }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
+              <span>⚙️</span> <span>Settings & Email</span>
+            </button>
             <button style={menuItemStyle} onClick={handleCopyHandle}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--c-surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}>
@@ -238,6 +298,7 @@ export default function ProfileMenu() {
         </div>
       )}
 
+      {showSettings && <SettingsModal user={user} profile={profile} onClose={() => setShowSettings(false)} />}
       {showAvatarUpload && <AvatarUpload onClose={() => setShowAvatarUpload(false)} />}
       {editField === 'name' && (
         <EditModal title="Edit name" value={profile?.name} maxLength={50} info="Can be changed once every 12 hours" onSave={handleSaveName} onClose={() => setEditField(null)} />
